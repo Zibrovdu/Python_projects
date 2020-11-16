@@ -7,20 +7,31 @@ import pandas as pd
 from datetime import date
 
 current_month = date.today().month
+# Текущий фыормат файла с отчетом (горизонтальная таблица)
+# df = pd.read_excel('data.xlsx', skiprows=7)
+# df = df.drop('Unnamed: 0', axis=1)
+# df.set_index(df.columns[0], inplace=True)
+# df = df.T
+# df['month'] = pd.to_datetime(df.index)
+# df['month'] = df['month'].dt.month
 
-df = pd.read_excel('data.xlsx', skiprows=7)
-df = df.drop('Unnamed: 0', axis=1)
+# Предлагаемый формат файла с отчетом (вертикальная таблица)
+
+df = pd.read_excel('data.xlsx', sheet_name='Данные')
+# df = df.drop('Unnamed: 0', axis=1)
 df.set_index(df.columns[0], inplace=True)
-df = df.T
+# df = df.T
 df['month'] = pd.to_datetime(df.index)
 df['month'] = df['month'].dt.month
+df.head()
 
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.layout = html.Div([
     html.Div([
-        html.H2("Межрегиональное бухгалтерское УФК"),
+        # html.H1("Межрегиональное бухгалтерское УФК"),
+        html.H2('Отчет о работе Отдела сопровождения пользователей МБУ ФК'),
         html.Img(src="assets/logo.png")
     ], className="banner"),
     html.Div([
@@ -35,7 +46,7 @@ app.layout = html.Div([
                        step=None)
         ], className='six columns'),
         html.Div([
-            html.H3('Сопроводение пользователей'),
+            html.H3('Сопровождение пользователей'),
             dcc.Graph(id='tech'),
             dcc.Slider(id='month-slider_2',
                        min=df['month'].min(),
@@ -64,16 +75,56 @@ def update_figure_user(selected_month_1):
     trace_office = go.Scatter(x=list(filtered_df_1.index),
                               y=list(filtered_df_1['Сопровождение пользователя в офисе']),
                               name='работа в офисе',
-                              line=dict(color='orange', width=3))
+                              line=dict(color='crimson', width=3))
     trace_online = go.Scatter(x=list(filtered_df_1.index),
                               y=list(filtered_df_1['Сопровождение пользователя на удаленной работе']),
                               name='удаленная работа',
-                              line=dict(color='blue', width=3))
+                              line=dict(color='lightslategrey', width=3))
 
-    data_1 = [trace_office, trace_online]
+    trace_offline_bar = go.Bar(x=list(filtered_df_1.index),
+                               y=list(filtered_df_1['Сопровождение пользователя в офисе']),
+                               base=0,
+                               marker_color='crimson',
+                               name='работа в офисе',
+                               visible=False)
+
+    trace_online_bar = go.Bar(x=filtered_df_1.index,
+                              y=list(filtered_df_1['Сопровождение пользователя на удаленной работе']),
+                              base=0,
+                              marker_color='lightslategrey',
+                              name='удаленная работа',
+                              visible=False)
+
+    data_1 = [trace_office, trace_online, trace_offline_bar, trace_online_bar]
+
+    updatemenus = list([
+        dict(
+            buttons=list([
+                dict(
+                    args=[{'visible': [True, True, False, False]}],
+                    label='Линейный график',
+                    metod='update'
+                ),
+                dict(
+                    args=[{'visible': [False, False, True, True]}],
+                    label='Столбчатая диаграмма',
+                    metod='update'
+                )
+            ]),
+            direction='down',
+            pad={'r': 10, 't': 10},
+            showactive=True,
+            x=0.5,
+            xanchor='left',
+            y=1.25,
+            yanchor='top'
+        )
+    ])
 
     layout_1 = dict(
         title='Обращения в техническую поддержку',
+        updatemenus=updatemenus,
+        autosize=False,
         xaxis=dict(
             rangeselector=dict(
                 buttons=list([
@@ -136,10 +187,56 @@ def update_figure_tech(selected_month_2):
                                name='СУЭ ОСП',
                                line=dict(color='blue', width=3))
 
-    data_2 = [trace_rtk, trace_sue, trace_sue_osp]
+    trace_rtk_bar = go.Bar(x=filtered_df_2.index,
+                           y=filtered_df_2['РТК'],
+                           base=0,
+                           marker_color='#F44242',
+                           name='РТК',
+                           visible=False)
+
+    trace_sue_bar = go.Bar(x=filtered_df_2.index,
+                           y=filtered_df_2['СУЭ'],
+                           base=0,
+                           marker_color='green',
+                           name='СУЭ',
+                           visible=False)
+
+    trace_sue_osp_bar = go.Bar(x=filtered_df_2.index,
+                               y=filtered_df_2['СУЭ ОСП'],
+                               base=0,
+                               marker_color='blue',
+                               visible=False)
+
+    data_2 = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
+
+    updatemenus = list([
+        dict(
+            buttons=list([
+                dict(
+                    args=[{'visible': [True, True, True, False, False, False]}],
+                    label='Линейный график',
+                    metod='update'
+                ),
+                dict(
+                    args=[{'visible': [False, False, False, True, True, True]}],
+                    label='Столбчатая диаграмма',
+                    metod='update'
+                )
+            ]),
+            direction='down',
+            pad={'r': 10, 't': 10},
+            showactive=True,
+            x=0.5,
+            xanchor='left',
+            y=1.25,
+            yanchor='top'
+        )
+    ])
 
     layout_2 = dict(
         title='Сопроводение пользователей',
+        updatemenus=updatemenus,
+        autosize=False,
         xaxis=dict(
             rangeselector=dict(
                 buttons=list([
