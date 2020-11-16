@@ -9,6 +9,8 @@ data_df = pd.read_excel('data.xlsx', skiprows=7)
 data_df = data_df.drop('Unnamed: 0', axis=1)
 data_df.set_index(data_df.columns[0], inplace=True)
 df = data_df.T
+df['month'] = pd.to_datetime(df.index)
+df['month'] = df['month'].dt.month
 print(df.head())
 
 trace_rtk = go.Scatter(x=list(df.index),
@@ -25,16 +27,17 @@ trace_sue_osp = go.Scatter(x=list(df.index),
                            y=list(df['СУЭ ОСП']),
                            name='СУЭ ОСП',
                            line=dict(color='blue', width=3))
-trace_office = go.Scatter(x=list(df.index),
-                          y=list(df['Сопровождение пользователя в офисе']),
-                          name='работа в офисе',
-                          line=dict(color='orange', width=3))
-trace_online = go.Scatter(x=list(df.index),
-                          y=list(df['Сопровождение пользователя на удаленной работе']),
-                          name='удаленная работа',
-                          line=dict(color='blue', width=3))
+# trace_office = go.Scatter(x=list(df.index),
+#                           y=list(df['Сопровождение пользователя в офисе']),
+#                           name='работа в офисе',
+#                           line=dict(color='orange', width=3))
+# trace_online = go.Scatter(x=list(df.index),
+#                           y=list(df['Сопровождение пользователя на удаленной работе']),
+#                           name='удаленная работа',
+#                           line=dict(color='blue', width=3))
 
-app = dash.Dash(__name__)
+external_stylesheets = ['assets/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.layout = html.Div([
     html.Div([
@@ -44,46 +47,15 @@ app.layout = html.Div([
     html.Div([
         html.Div([
             html.H3('Обращения в техническую поддержку'),
-            dcc.Graph(
-                id='users',
-                figure={
-                    'data': [trace_office, trace_online],
-                    'layout': dict(
-                        title='Обращения в техническую поддержку',
-                        # updatemes=updatemenus,
-                        # autosize=False,
-                        xaxis=dict(
-                            rangeselector=dict(
-                                buttons=list([
-                                    dict(count=1,
-                                         label='1w',
-                                         step='week',
-                                         stepmode='backward'),
-                                    dict(count=1,
-                                         label='1m',
-                                         step='month',
-                                         stepmode='backward'),
-                                    dict(count=6,
-                                         label='6m',
-                                         step='month',
-                                         stepmode='backward'),
-                                    dict(count=1,
-                                         label='1y',
-                                         step='year',
-                                         stepmode='backward'),
-                                    dict(step='all')
-                                ])
-                            ),
-                            rangeslider=dict(
-                                visible=True
-                            ),
-                            type='date'
-                        )
-                    )
-                }
-            )
-        ], className='six columns'),
+            dcc.Graph(id='users'),
 
+            dcc.Slider(id='month-slider',
+                       min=df['month'].min(),
+                       max=df['month'].max(),
+                       value=df['month'].min(),
+                       marks={str(month): str(month) for month in df['month'].unique()},
+                       step=None)
+        ], className='six columns'),
         html.Div([
             html.H3('Сопроводение пользователей'),
             dcc.Graph(
@@ -92,8 +64,6 @@ app.layout = html.Div([
                     'data': [trace_rtk, trace_sue, trace_sue_osp],
                     'layout': dict(
                         title='Сопроводение пользователей',
-                        # updatemes=updatemenus,
-                        # autosize=False,
                         xaxis=dict(
                             rangeselector=dict(
                                 buttons=list([
@@ -124,14 +94,67 @@ app.layout = html.Div([
                     )
                 }
             )
+
         ], className='six columns'),
     ], className='row')
 ])
 
-app.css.append_css({
-    "external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css",
-    "external_stylesheets": "assets/bWLwgP.css"
-})
+
+@app.callback(
+    Output('users', 'figure'),
+    [Input('month-slider', 'value')])
+def update_figure(selected_month):
+    filtered_df = df[df.month == selected_month]
+
+    trace_office = go.Scatter(x=list(filtered_df.index),
+                              y=list(filtered_df['Сопровождение пользователя в офисе']),
+                              name='работа в офисе',
+                              line=dict(color='orange', width=3))
+    trace_online = go.Scatter(x=list(filtered_df.index),
+                              y=list(filtered_df['Сопровождение пользователя на удаленной работе']),
+                              name='удаленная работа',
+                              line=dict(color='blue', width=3))
+
+    data = [trace_office, trace_online]
+
+    layout = dict(
+        title='Обращения в техническую поддержку',
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=list([
+                    dict(count=1,
+                         label='1w',
+                         step='week',
+                         stepmode='backward'),
+                    dict(count=1,
+                         label='1m',
+                         step='month',
+                         stepmode='backward'),
+                    dict(count=6,
+                         label='6m',
+                         step='month',
+                         stepmode='backward'),
+                    dict(count=1,
+                         label='1y',
+                         step='year',
+                         stepmode='backward'),
+                    dict(step='all')
+                ])
+            ),
+            rangeslider=dict(
+                visible=True
+            ),
+            type='date'
+        )
+    )
+
+    # data.update_layout(transition_duration=500)
+
+    return {
+        "data": data,
+        "layout": layout
+    }
+
 
 # @app.callback(Output('users', 'figure'),
 #               [Input('submit-button', 'n_clicks')],
