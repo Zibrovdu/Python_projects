@@ -1,7 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import date
@@ -99,7 +99,8 @@ app.layout = html.Div([
 
 @app.callback(
     Output('users', 'figure'),
-    [Input('week-slider_users', 'value')])
+    [Input('week-slider_users', 'value')]
+)
 def update_figure_user(selected_week_user):
     df1 = pd.read_excel('data.xlsx', skiprows=7)
     df1 = df1.drop('Unnamed: 0', axis=1)
@@ -128,14 +129,14 @@ def update_figure_user(selected_week_user):
     trace_offline_bar = go.Bar(x=list(filtered_df_1.index),
                                y=list(filtered_df_1['Сопровождение пользователя в офисе']),
                                base=0,
-                               marker_color='crimson',
+                               marker=dict(color='crimson'),
                                name='работа в офисе',
                                visible=False)
 
     trace_online_bar = go.Bar(x=filtered_df_1.index,
                               y=list(filtered_df_1['Сопровождение пользователя на удаленной работе']),
                               base=0,
-                              marker_color='lightslategrey',
+                              marker=dict(color='lightslategrey'),
                               name='удаленная работа',
                               visible=False)
 
@@ -166,6 +167,7 @@ def update_figure_user(selected_week_user):
     ])
 
     layout_user = dict(
+        # title='Обращения в техническую поддержку',
         updatemenus=updatemenus,
         autosize=True,
         legend=dict(
@@ -173,7 +175,34 @@ def update_figure_user(selected_week_user):
             yanchor="bottom",
             y=1,
             xanchor="right",
-            x=1)
+            x=1),
+        # xaxis=dict(
+        #     rangeselector=dict(
+        #         buttons=list([
+        #             dict(count=7,
+        #                  label='1w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=14,
+        #                  label='2w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=21,
+        #                  label='3w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=28,
+        #                  label='4w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(step='all')
+        #         ])
+        #     ),
+        #     rangeslider=dict(
+        #         visible=True
+        #     ),
+        #     type='date_user'
+        # )
     )
 
     return {
@@ -201,40 +230,40 @@ def update_figure_tech(selected_week_tech):
                            name='РТК',
                            mode='lines+markers',
                            marker=dict(size=15),
-                           line=dict(color='#F44242', width=5))
+                           line=dict(color='#67b18d', width=5))
 
     trace_sue = go.Scatter(x=list(filtered_df_2.index),
                            y=list(filtered_df_2['СУЭ']),
                            name='СУЭ',
                            mode='lines+markers',
                            marker=dict(size=15),
-                           line=dict(color='green', width=5))
+                           line=dict(color='#5794a1', width=5))
 
     trace_sue_osp = go.Scatter(x=list(filtered_df_2.index),
                                y=list(filtered_df_2['СУЭ ОСП']),
                                name='СУЭ ОСП',
                                mode='lines+markers',
                                marker=dict(size=15),
-                               line=dict(color='blue', width=5))
+                               line=dict(color='#9b5050', width=5))
 
     trace_rtk_bar = go.Bar(x=filtered_df_2.index,
                            y=filtered_df_2['РТК'],
                            base=0,
-                           marker_color='#F44242',
+                           marker=dict(color='#67b18d'),
                            name='РТК',
                            visible=False)
 
     trace_sue_bar = go.Bar(x=filtered_df_2.index,
                            y=filtered_df_2['СУЭ'],
                            base=0,
-                           marker_color='green',
+                           marker=dict(color='#5794a1'),
                            name='СУЭ',
                            visible=False)
 
     trace_sue_osp_bar = go.Bar(x=filtered_df_2.index,
                                y=filtered_df_2['СУЭ ОСП'],
                                base=0,
-                               marker_color='blue',
+                               marker=dict(color='#9b5050'),
                                visible=False)
 
     data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
@@ -272,7 +301,34 @@ def update_figure_tech(selected_week_tech):
             yanchor="bottom",
             y=1,
             xanchor="right",
-            x=1)
+            x=1),
+        # xaxis=dict(
+        #     rangeselector=dict(
+        #         buttons=list([
+        #             dict(count=7,
+        #                  label='1w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=14,
+        #                  label='2w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=21,
+        #                  label='3w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(count=28,
+        #                  label='4w',
+        #                  step='day',
+        #                  stepmode='backward'),
+        #             dict(step='all')
+        #         ])
+        #     ),
+        #     rangeslider=dict(
+        #         visible=True
+        #     ),
+        #     type='date_user'
+        # )
     )
 
     return {
@@ -299,32 +355,114 @@ def update_figure_site(selected_week_site):
     trace_budget_bar = go.Bar(x=filtered_site_df.index,
                               y=filtered_site_df['Электронный бюджет'],
                               base=0,
-                              # marker_color='#F44242',
+                              marker=dict(color='#d54062'),
                               name='Электронный бюджет')
 
     trace_news_bar = go.Bar(x=filtered_site_df.index,
                             y=filtered_site_df['Новости'],
                             base=0,
-                            # marker_color='green',
+                            marker=dict(color='#ffa36c'),
                             name='Новости')
 
     trace_about_bar = go.Bar(x=filtered_site_df.index,
                              y=filtered_site_df['О межрегиональном бухгалтерском УФК'],
                              base=0,
-                             # marker_color='blue',
+                             marker=dict(color='#ebdc87'),
                              name='О межрегиональном бухгалтерском УФК')
 
     trace_other_bar = go.Bar(x=filtered_site_df.index,
                              y=filtered_site_df['Иная деятельность'],
                              base=0,
-                             # marker_color='blue',
+                             marker=dict(color='#799351'),
                              name='Иная деятельность')
 
-    data_site = [trace_budget_bar, trace_news_bar, trace_about_bar, trace_other_bar]
+    trace_budget_line = go.Scatter(x=filtered_site_df.index,
+                                   y=filtered_site_df['Электронный бюджет'],
+                                   name='Электронный бюджет',
+                                   mode='lines+markers',
+                                   marker=dict(size=15),
+                                   line=dict(color='#d54062', width=5),
+                                   visible=False)
+    trace_news_line = go.Scatter(x=filtered_site_df.index,
+                                 y=filtered_site_df['Новости'],
+                                 name='Новости',
+                                 mode='lines+markers',
+                                 marker=dict(size=15),
+                                 line=dict(color='#ffa36c', width=5),
+                                 visible=False)
+    trace_about_line = go.Scatter(x=filtered_site_df.index,
+                                  y=filtered_site_df['О межрегиональном бухгалтерском УФК'],
+                                  name='О межрегиональном бухгалтерском УФК',
+                                  mode='lines+markers',
+                                  marker=dict(size=15),
+                                  line=dict(color='#ebdc87', width=5),
+                                  visible=False)
+    trace_other_line = go.Scatter(x=filtered_site_df.index,
+                                  y=filtered_site_df['Иная деятельность'],
+                                  name='Иная деятельность',
+                                  mode='lines+markers',
+                                  marker=dict(size=15),
+                                  line=dict(color='#799351', width=5),
+                                  visible=False)
+
+    data_site = [trace_budget_bar, trace_news_bar, trace_about_bar, trace_other_bar, trace_budget_line, trace_news_line,
+                 trace_about_line, trace_other_line]
+
+    updatemenus = list([
+        dict(
+            buttons=list([
+                dict(
+                    args=[{'visible': [True, True, True, True, False, False, False, False]}],
+                    label='Столбчатая диаграмма',
+                    metod='update'
+                ),
+                dict(
+                    args=[{'visible': [False, False, False, False, True, True, True, True]}],
+                    label='Линейный график',
+                    metod='update'
+                )
+            ]),
+            direction='down',
+            pad={'r': 10, 't': 10},
+            showactive=True,
+            x=0,
+            xanchor='left',
+            y=1.35,
+            yanchor='top'
+        )
+    ])
 
     layout_site = dict(
         title='Статистика посещаний разделов сайта',
-        autosize=True
+        updatemenus=updatemenus,
+        autosize=True,
+        # xaxis=dict(
+        #     # rangeselector=dict(
+        #     #     # buttons=list([
+        #     #     #     dict(count=7,
+        #     #     #          label='1w',
+        #     #     #          step='day',
+        #     #     #          stepmode='backward'),
+        #     #     #     dict(count=14,
+        #     #     #          label='2w',
+        #     #     #          step='day',
+        #     #     #          stepmode='backward'),
+        #     #     #     dict(count=21,
+        #     #     #          label='3w',
+        #     #     #          step='day',
+        #     #     #          stepmode='backward'),
+        #     #     #     dict(count=28,
+        #     #     #          label='4w',
+        #     #     #          step='day',
+        #     #     #          stepmode='backward'),
+        #     #     #     dict(step='all')
+        #     #     # ])
+        #     # ),
+        #     # rangeslider=dict(
+        #     #     visible=True
+        #     # ),
+        #     type='date_site'
+        # )
     )
 
     return {
