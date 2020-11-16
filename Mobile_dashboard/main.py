@@ -6,8 +6,9 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import date
 
-
 current_month = date.today().month
+current_week = date.today().isocalendar()[1]
+
 # Текущий формат файла с отчетом (горизонтальная таблица)
 # df = pd.read_excel('data.xlsx', skiprows=7)
 # df = df.drop('Unnamed: 0', axis=1)
@@ -21,6 +22,15 @@ df = pd.read_excel('data.xlsx', sheet_name='Данные')
 df.set_index(df.columns[0], inplace=True)
 df['month'] = pd.to_datetime(df.index)
 df['month'] = df['month'].dt.month
+df['week'] = pd.to_datetime(df.index)
+df['week'] = df['week'].dt.isocalendar().week
+
+weeks_num_tech = [week for week in df['week'].unique()]
+if current_week < 11 or len(weeks_num_tech) < 10:
+    show_weeks_tech = weeks_num_tech[current_week - 1::-1]
+else:
+    list_week_tech = current_week - 10
+    show_weeks_tech = weeks_num_tech[current_week - 1:list_week_tech:-1]
 
 # Загружаем данные по посещению сайта
 site_df = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
@@ -29,7 +39,15 @@ site_df.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
 site_df.set_index(site_df.columns[0], inplace=True)
 site_df['month'] = pd.to_datetime(site_df.index)
 site_df['month'] = site_df['month'].dt.month
+site_df['week'] = pd.to_datetime(site_df.index)
+site_df['week'] = site_df['week'].dt.isocalendar().week
 
+weeks_num_site = [week for week in site_df['week'].unique()]
+if current_week < 11 or len(weeks_num_site) < 10:
+    show_weeks_site = weeks_num_site[current_week - 1::-1]
+else:
+    list_week_site = current_week - 10
+    show_weeks_site = weeks_num_site[current_week - 1:list_week_site:-1]
 
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -44,21 +62,21 @@ app.layout = html.Div([
         html.Div([
             html.Center(html.H3('Обращения в тех поддержку')),
             dcc.Graph(id='users'),
-            dcc.Slider(id='month-slider_users',
-                       min=df['month'].min(),
-                       max=df['month'].max(),
-                       value=current_month,
-                       marks={str(month): str(month) for month in df['month'].unique()},
+            dcc.Slider(id='week-slider_users',
+                       min=min(show_weeks_tech),
+                       max=max(show_weeks_tech),
+                       value=current_week,
+                       marks={str(week): str(week) for week in show_weeks_tech},
                        step=None)
         ], className='six columns'),
         html.Div([
             html.Center(html.H3('Сопровождение пользователей')),
             dcc.Graph(id='tech'),
-            dcc.Slider(id='month-slider_tech',
-                       min=df['month'].min(),
-                       max=df['month'].max(),
-                       value=current_month,
-                       marks={str(month): str(month) for month in df['month'].unique()},
+            dcc.Slider(id='week-slider_tech',
+                       min=min(show_weeks_tech),
+                       max=max(show_weeks_tech),
+                       value=current_week,
+                       marks={str(week): str(week) for week in show_weeks_tech},
                        step=None)
         ], className='six columns'),
     ], className='row'),
@@ -68,11 +86,11 @@ app.layout = html.Div([
         ], className='zagolovok'),
         html.Div([
             dcc.Graph(id='site'),
-            dcc.Slider(id='month-slider_site',
-                       min=df['month'].min(),
-                       max=df['month'].max(),
-                       value=current_month,
-                       marks={str(month): str(month) for month in df['month'].unique()},
+            dcc.Slider(id='week-slider_site',
+                       min=min(show_weeks_site),
+                       max=max(show_weeks_site),
+                       value=current_week,
+                       marks={str(week): str(week) for week in show_weeks_site},
                        step=None)
         ])
     ], className='eleven columns')
@@ -81,25 +99,31 @@ app.layout = html.Div([
 
 @app.callback(
     Output('users', 'figure'),
-    [Input('month-slider_users', 'value')])
-def update_figure_user(selected_month_user):
+    [Input('week-slider_users', 'value')])
+def update_figure_user(selected_week_user):
     df1 = pd.read_excel('data.xlsx', skiprows=7)
     df1 = df1.drop('Unnamed: 0', axis=1)
     df1.set_index(df1.columns[0], inplace=True)
     df1 = df1.T
     df1['month'] = pd.to_datetime(df1.index)
     df1['month'] = df1['month'].dt.month
+    df1['week'] = pd.to_datetime(df1.index)
+    df1['week'] = df1['week'].dt.isocalendar().week
 
-    filtered_df_1 = df1[df1['month'] == selected_month_user]
+    filtered_df_1 = df1[df1['week'] == selected_week_user]
 
     trace_office = go.Scatter(x=list(filtered_df_1.index),
                               y=list(filtered_df_1['Сопровождение пользователя в офисе']),
                               name='работа в офисе',
-                              line=dict(color='crimson', width=3))
+                              mode='lines+markers',
+                              marker=dict(size=15),
+                              line=dict(color='crimson', width=5))
     trace_online = go.Scatter(x=list(filtered_df_1.index),
                               y=list(filtered_df_1['Сопровождение пользователя на удаленной работе']),
                               name='удаленная работа',
-                              line=dict(color='lightslategrey', width=3))
+                              mode='lines+markers',
+                              marker=dict(size=15),
+                              line=dict(color='lightslategrey', width=5))
 
     trace_offline_bar = go.Bar(x=list(filtered_df_1.index),
                                y=list(filtered_df_1['Сопровождение пользователя в офисе']),
@@ -134,44 +158,22 @@ def update_figure_user(selected_month_user):
             direction='down',
             pad={'r': 10, 't': 10},
             showactive=True,
-            x=0.5,
+            x=0,
             xanchor='left',
-            y=1.25,
+            y=1.35,
             yanchor='top'
         )
     ])
 
     layout_user = dict(
-        title='Обращения в техническую поддержку',
         updatemenus=updatemenus,
-        autosize=False,
-        xaxis=dict(
-            rangeselector=dict(
-                buttons=list([
-                    dict(count=7,
-                         label='1w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=14,
-                         label='2w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=21,
-                         label='3w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=28,
-                         label='4w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(step='all')
-                ])
-            ),
-            rangeslider=dict(
-                visible=True
-            ),
-            type='date_user'
-        )
+        autosize=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1,
+            xanchor="right",
+            x=1)
     )
 
     return {
@@ -181,31 +183,39 @@ def update_figure_user(selected_month_user):
 
 @app.callback(
     Output('tech', 'figure'),
-    [Input('month-slider_tech', 'value')])
-def update_figure_tech(selected_month_tech):
+    [Input('week-slider_tech', 'value')])
+def update_figure_tech(selected_week_tech):
     df2 = pd.read_excel('data.xlsx', skiprows=7)
     df2 = df2.drop('Unnamed: 0', axis=1)
     df2.set_index(df2.columns[0], inplace=True)
     df2 = df2.T
     df2['month'] = pd.to_datetime(df2.index)
     df2['month'] = df2['month'].dt.month
+    df2['week'] = pd.to_datetime(df2.index)
+    df2['week'] = df2['week'].dt.isocalendar().week
 
-    filtered_df_2 = df2[df2['month'] == selected_month_tech]
+    filtered_df_2 = df2[df2['week'] == selected_week_tech]
 
     trace_rtk = go.Scatter(x=list(filtered_df_2.index),
                            y=list(filtered_df_2['РТК']),
                            name='РТК',
-                           line=dict(color='#F44242', width=3))
+                           mode='lines+markers',
+                           marker=dict(size=15),
+                           line=dict(color='#F44242', width=5))
 
     trace_sue = go.Scatter(x=list(filtered_df_2.index),
                            y=list(filtered_df_2['СУЭ']),
                            name='СУЭ',
-                           line=dict(color='green', width=3))
+                           mode='lines+markers',
+                           marker=dict(size=15),
+                           line=dict(color='green', width=5))
 
     trace_sue_osp = go.Scatter(x=list(filtered_df_2.index),
                                y=list(filtered_df_2['СУЭ ОСП']),
                                name='СУЭ ОСП',
-                               line=dict(color='blue', width=3))
+                               mode='lines+markers',
+                               marker=dict(size=15),
+                               line=dict(color='blue', width=5))
 
     trace_rtk_bar = go.Bar(x=filtered_df_2.index,
                            y=filtered_df_2['РТК'],
@@ -246,44 +256,23 @@ def update_figure_tech(selected_month_tech):
             direction='down',
             pad={'r': 10, 't': 10},
             showactive=True,
-            x=0.5,
+            x=0,
             xanchor='left',
-            y=1.25,
+            y=1.35,
             yanchor='top'
         )
     ])
 
     layout_tech = dict(
-        title='Сопроводение пользователей',
+        # title='Сопроводение пользователей',
         updatemenus=updatemenus,
-        autosize=False,
-        xaxis=dict(
-            rangeselector=dict(
-                buttons=list([
-                    dict(count=7,
-                         label='1w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=14,
-                         label='2w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=21,
-                         label='3w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=28,
-                         label='4w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(step='all')
-                ])
-            ),
-            rangeslider=dict(
-                visible=True
-            ),
-            type='date_user'
-        )
+        autosize=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1,
+            xanchor="right",
+            x=1)
     )
 
     return {
@@ -294,16 +283,18 @@ def update_figure_tech(selected_month_tech):
 
 @app.callback(
     Output('site', 'figure'),
-    [Input('month-slider_site', 'value')])
-def update_figure_site(selected_month_site):
+    [Input('week-slider_site', 'value')])
+def update_figure_site(selected_week_site):
     site_df_upd = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
     site_df_upd.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
     site_df_upd.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
     site_df_upd.set_index(site_df_upd.columns[0], inplace=True)
     site_df_upd['month'] = pd.to_datetime(site_df_upd.index)
     site_df_upd['month'] = site_df_upd['month'].dt.month
+    site_df_upd['week'] = pd.to_datetime(site_df_upd.index)
+    site_df_upd['week'] = site_df_upd['week'].dt.isocalendar().week
 
-    filtered_site_df = site_df_upd[site_df_upd['month'] == selected_month_site]
+    filtered_site_df = site_df_upd[site_df_upd['week'] == selected_week_site]
 
     trace_budget_bar = go.Bar(x=filtered_site_df.index,
                               y=filtered_site_df['Электронный бюджет'],
@@ -333,34 +324,7 @@ def update_figure_site(selected_month_site):
 
     layout_site = dict(
         title='Статистика посещаний разделов сайта',
-        autosize=False,
-        xaxis=dict(
-            rangeselector=dict(
-                buttons=list([
-                    dict(count=7,
-                         label='1w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=14,
-                         label='2w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=21,
-                         label='3w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(count=28,
-                         label='4w',
-                         step='day',
-                         stepmode='backward'),
-                    dict(step='all')
-                ])
-            ),
-            rangeslider=dict(
-                visible=True
-            ),
-            type='date_site'
-        )
+        autosize=True
     )
 
     return {
@@ -370,4 +334,4 @@ def update_figure_site(selected_month_site):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.10', port=8050)
+    app.run_server(debug=True, host='192.168.2.109', port=8060)
