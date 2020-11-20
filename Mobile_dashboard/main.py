@@ -73,7 +73,7 @@ app.layout = html.Div([
                 dcc.Tab(label='Неделя', value='weeks', children=[
                     html.Div([
                         html.Div([
-                            html.Center(html.H3('Обращения в тех поддержку')),
+                            html.Center(html.H3('Сопровождение пользователей')),
                             dcc.Dropdown(id='user_dropdown_week',
                                          options=[
                                              dict(label='Линейный график', value='[True, True, False, False]'),
@@ -91,7 +91,7 @@ app.layout = html.Div([
                                        step=None)
                         ], className='six columns'),
                         html.Div([
-                            html.Center(html.H3('Сопровождение пользователей')),
+                            html.Center(html.H3('Обращения в тех поддержку')),
                             dcc.Dropdown(id='tech_dropdown_week',
                                          options=[
                                              dict(label='Линейный график', value='[True, True, True, False, False, '
@@ -138,7 +138,7 @@ app.layout = html.Div([
                 dcc.Tab(label='Месяц', value='months', children=[
                     html.Div([
                         html.Div([
-                            html.Center(html.H3('Обращения в тех поддержку')),
+                            html.Center(html.H3('Сопровождение пользователей')),
                             dcc.Dropdown(id='user_dropdown_month',
                                          options=[
                                              dict(label='Линейный график', value='[True, True, False, False]'),
@@ -156,7 +156,7 @@ app.layout = html.Div([
                                        step=None)
                         ], className='six columns'),
                         html.Div([
-                            html.Center(html.H3('Сопровождение пользователей')),
+                            html.Center(html.H3('Обращения в тех поддержку')),
                             dcc.Dropdown(id='tech_dropdown_month',
                                          options=[
                                              dict(label='Линейный график', value='[True, True, True, False, False, '
@@ -216,10 +216,9 @@ app.layout = html.Div([
      Input('user_dropdown_month', 'value')
      ])
 def update_figure_user(tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month):
-    df1 = pd.read_excel('data.xlsx', skiprows=7)
-    df1 = df1.drop('Unnamed: 0', axis=1)
+    print('user_graph', tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month)
+    df1 = pd.read_excel('data.xlsx', sheet_name='Данные')
     df1.set_index(df1.columns[0], inplace=True)
-    df1 = df1.T
     df1['month'] = pd.to_datetime(df1.index)
     df1['month'] = df1['month'].dt.month
     df1['week'] = pd.to_datetime(df1.index)
@@ -230,28 +229,28 @@ def update_figure_user(tab, selected_week_user, figure_user_type, selected_month
 
     if tab == 'weeks':
         figure_user_type = eval_expression(figure_user_type)
-        trace_office = go.Scatter(x=list(filtered_df_week.index),
-                                  y=list(filtered_df_week['Сопровождение пользователя в офисе']),
+        trace_office = go.Scatter(x=filtered_df_week.index,
+                                  y=filtered_df_week['Сопровождение пользователя в офисе'],
                                   name='работа в офисе',
                                   mode='lines+markers',
                                   marker=dict(size=15),
                                   line=dict(color='crimson', width=5),
                                   visible=figure_user_type[0])
-        trace_online = go.Scatter(x=list(filtered_df_week.index),
-                                  y=list(filtered_df_week['Сопровождение пользователя на удаленной работе']),
+        trace_online = go.Scatter(x=filtered_df_week.index,
+                                  y=filtered_df_week['Сопровождение пользователя на удаленной работе'],
                                   name='удаленная работа',
                                   mode='lines+markers',
                                   marker=dict(size=15),
                                   line=dict(color='lightslategrey', width=5),
                                   visible=figure_user_type[1])
-        trace_offline_bar = go.Bar(x=list(filtered_df_week.index),
-                                   y=list(filtered_df_week['Сопровождение пользователя в офисе']),
+        trace_offline_bar = go.Bar(x=filtered_df_week.index,
+                                   y=filtered_df_week['Сопровождение пользователя в офисе'],
                                    base=0,
                                    marker=dict(color='crimson'),
                                    name='работа в офисе',
                                    visible=figure_user_type[2])
         trace_online_bar = go.Bar(x=filtered_df_week.index,
-                                  y=list(filtered_df_week['Сопровождение пользователя на удаленной работе']),
+                                  y=filtered_df_week['Сопровождение пользователя на удаленной работе'],
                                   base=0,
                                   marker=dict(color='lightslategrey'),
                                   name='удаленная работа',
@@ -277,28 +276,28 @@ def update_figure_user(tab, selected_week_user, figure_user_type, selected_month
 
     elif tab == 'months':
         figure_user_type_month = eval_expression(figure_user_type_month)
-        trace_office = go.Scatter(x=list(filtered_df_month.index),
-                                  y=list(filtered_df_month['Сопровождение пользователя в офисе']),
+        trace_office = go.Scatter(x=filtered_df_month.index,
+                                  y=filtered_df_month['Сопровождение пользователя в офисе'],
                                   name='работа в офисе',
                                   mode='lines+markers',
                                   marker=dict(size=15),
                                   line=dict(color='crimson', width=5),
                                   visible=figure_user_type_month[0])
-        trace_online = go.Scatter(x=list(filtered_df_month.index),
-                                  y=list(filtered_df_month['Сопровождение пользователя на удаленной работе']),
+        trace_online = go.Scatter(x=filtered_df_month.index,
+                                  y=filtered_df_month['Сопровождение пользователя на удаленной работе'],
                                   name='удаленная работа',
                                   mode='lines+markers',
                                   marker=dict(size=15),
                                   line=dict(color='lightslategrey', width=5),
                                   visible=figure_user_type_month[1])
-        trace_offline_bar = go.Bar(x=list(filtered_df_month.index),
-                                   y=list(filtered_df_month['Сопровождение пользователя в офисе']),
+        trace_offline_bar = go.Bar(x=filtered_df_month.index,
+                                   y=filtered_df_month['Сопровождение пользователя в офисе'],
                                    base=0,
                                    marker=dict(color='crimson'),
                                    name='работа в офисе',
                                    visible=figure_user_type_month[2])
         trace_online_bar = go.Bar(x=filtered_df_month.index,
-                                  y=list(filtered_df_month['Сопровождение пользователя на удаленной работе']),
+                                  y=filtered_df_month['Сопровождение пользователя на удаленной работе'],
                                   base=0,
                                   marker=dict(color='lightslategrey'),
                                   name='удаленная работа',
@@ -333,10 +332,9 @@ def update_figure_user(tab, selected_week_user, figure_user_type, selected_month
      Input('tech_dropdown_month', 'value')
      ])
 def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month):
-    df2 = pd.read_excel('data.xlsx', skiprows=7)
-    df2 = df2.drop('Unnamed: 0', axis=1)
+    print('tech_graph', tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month)
+    df2 = pd.read_excel('data.xlsx', sheet_name='Данные')
     df2.set_index(df2.columns[0], inplace=True)
-    df2 = df2.T
     df2['month'] = pd.to_datetime(df2.index)
     df2['month'] = df2['month'].dt.month
     df2['week'] = pd.to_datetime(df2.index)
@@ -348,24 +346,24 @@ def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month
     if tab == 'weeks':
         figure_tech_type = eval_expression(figure_tech_type)
 
-        trace_rtk = go.Scatter(x=list(filtered_df_week.index),
-                               y=list(filtered_df_week['РТК']),
+        trace_rtk = go.Scatter(x=filtered_df_week.index,
+                               y=filtered_df_week['РТК'],
                                name='РТК',
                                mode='lines+markers',
                                marker=dict(size=15),
                                line=dict(color='#67b18d', width=5),
                                visible=figure_tech_type[0])
 
-        trace_sue = go.Scatter(x=list(filtered_df_week.index),
-                               y=list(filtered_df_week['СУЭ']),
+        trace_sue = go.Scatter(x=filtered_df_week.index,
+                               y=filtered_df_week['СУЭ'],
                                name='СУЭ',
                                mode='lines+markers',
                                marker=dict(size=15),
                                line=dict(color='#5794a1', width=5),
                                visible=figure_tech_type[1])
 
-        trace_sue_osp = go.Scatter(x=list(filtered_df_week.index),
-                                   y=list(filtered_df_week['СУЭ ОСП']),
+        trace_sue_osp = go.Scatter(x=filtered_df_week.index,
+                                   y=filtered_df_week['СУЭ ОСП'],
                                    name='СУЭ ОСП',
                                    mode='lines+markers',
                                    marker=dict(size=15),
@@ -390,6 +388,7 @@ def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month
                                    y=filtered_df_week['СУЭ ОСП'],
                                    base=0,
                                    marker=dict(color='#9b5050'),
+                                   name='СУЭ ОСП',
                                    visible=figure_tech_type[5])
 
         data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
@@ -429,8 +428,8 @@ def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month
                                line=dict(color='#5794a1', width=5),
                                visible=figure_user_tech_month[1])
 
-        trace_sue_osp = go.Scatter(x=filtered_df_week.index,
-                                   y=filtered_df_week['СУЭ ОСП'],
+        trace_sue_osp = go.Scatter(x=filtered_df_month.index,
+                                   y=filtered_df_month['СУЭ ОСП'],
                                    name='СУЭ ОСП',
                                    mode='lines+markers',
                                    marker=dict(size=15),
@@ -455,6 +454,7 @@ def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month
                                    y=filtered_df_month['СУЭ ОСП'],
                                    base=0,
                                    marker=dict(color='#9b5050'),
+                                   name='СУЭ ОСП',
                                    visible=figure_user_tech_month[5])
 
         data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
