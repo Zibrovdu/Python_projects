@@ -8,8 +8,9 @@ from datetime import date
 
 current_month = date.today().month
 current_week = date.today().isocalendar()[1]
-
+# current_week = 8
 # Текущий формат файла с отчетом (горизонтальная таблица)
+
 # df = pd.read_excel('data.xlsx', skiprows=7)
 # df = df.drop('Unnamed: 0', axis=1)
 # df.set_index(df.columns[0], inplace=True)
@@ -26,6 +27,7 @@ df['week'] = pd.to_datetime(df.index)
 df['week'] = df['week'].dt.isocalendar().week
 
 weeks_num_tech = [week for week in df['week'].unique()]
+weeks_num_tech = sorted(weeks_num_tech)
 if current_week < 11 or len(weeks_num_tech) < 10:
     show_weeks_tech = weeks_num_tech[current_week - 1::-1]
 else:
@@ -43,6 +45,7 @@ site_df['week'] = pd.to_datetime(site_df.index)
 site_df['week'] = site_df['week'].dt.isocalendar().week
 
 weeks_num_site = [week for week in site_df['week'].unique()]
+weeks_num_site = sorted(weeks_num_site)
 if current_week < 11 or len(weeks_num_site) < 10:
     show_weeks_site = weeks_num_site[current_week - 1::-1]
 else:
@@ -216,7 +219,7 @@ app.layout = html.Div([
      Input('user_dropdown_month', 'value')
      ])
 def update_figure_user(tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month):
-    print('user_graph', tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month)
+    # print('user_graph', tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month)
     df1 = pd.read_excel('data.xlsx', sheet_name='Данные')
     df1.set_index(df1.columns[0], inplace=True)
     df1['month'] = pd.to_datetime(df1.index)
@@ -332,7 +335,7 @@ def update_figure_user(tab, selected_week_user, figure_user_type, selected_month
      Input('tech_dropdown_month', 'value')
      ])
 def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month):
-    print('tech_graph', tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month)
+    # print('tech_graph', tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month)
     df2 = pd.read_excel('data.xlsx', sheet_name='Данные')
     df2.set_index(df2.columns[0], inplace=True)
     df2['month'] = pd.to_datetime(df2.index)
