@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import date, timedelta
 
+
 current_month = date.today().month
 current_day = date.today().day
 current_year = date.today().year
@@ -21,6 +22,61 @@ def load_data():
     return df_load
 
 
+def load_data_site():
+    df = pd.read_excel('site.xlsx', skiprows=6)
+    df['Страница входа, ур. 4'] = df['Страница входа, ур. 4'].fillna('')
+    df2 = df[df['Страница входа, ур. 4'].str.contains('molodezhnyy-sovet')][['Страница входа, ур. 4', 'Визиты',
+                                                                             'Посетители', 'Просмотры',
+                                                                             'Доля новых посетителей']]
+    df2 = pd.DataFrame(df2.groupby(['Страница входа, ур. 4'], as_index=False)[['Визиты', 'Посетители', 'Просмотры',
+                                                                               'Доля новых посетителей']].sum())
+    df2 = df2.rename(columns={'Страница входа, ур. 4': 'Страница входа, ур. 2'})
+    df = pd.DataFrame(df.groupby(['Страница входа, ур. 2'], as_index=False)[
+                          ['Визиты', 'Посетители', 'Просмотры', 'Доля новых посетителей']].sum())
+    df.loc[13, 'Страница входа, ур. 2'] = 'https://mbufk.roskazna.gov.ru/'
+    df = df.append(df2).reset_index()
+    df.drop('index', axis=1, inplace=True)
+    df.loc[8, ['Визиты', 'Посетители', 'Просмотры', 'Доля новых посетителей']] = df.loc[8, ['Визиты', 'Посетители',
+                                                                                            'Просмотры',
+                                                                                            'Доля новых посетителей']] - \
+                                                                                 df.loc[14, ['Визиты', 'Посетители',
+                                                                                             'Просмотры',
+                                                                                             'Доля новых посетителей']]
+    df2 = pd.read_excel('site.xlsx', sheet_name='перевод', header=None)
+    df['Название'] = ''
+    for num in range(len(df2)):
+        mask = df['Страница входа, ур. 2'].isin(df2.iloc[num])
+        df.loc[mask, 'Название'] = df2.iloc[num][1]
+    return df
+
+
+site_top_df = load_data_site()
+site_top_df.sort_values('Визиты', inplace=True)
+site_label = site_top_df.sort_values('Название').reset_index().drop('index', axis=1)
+
+site_1_df = pd.read_excel('site.xlsx', skiprows=6, nrows=1, usecols='A,F,G,H,N')
+
+site_label1 = site_top_df.sort_values('Посетители', ascending=False).reset_index().drop('index', axis=1)
+
+
+def load_data_eb():
+    df = pd.read_excel('site.xlsx', skiprows=6)
+    df = df[df['Страница входа, ур. 2'] == 'https://mbufk.roskazna.gov.ru/elektronnyy-byudzhet/']
+    df_eb = df.groupby('Страница входа, ур. 3', as_index=False)['Глубина просмотра'].sum()
+    df4 = pd.read_excel('site.xlsx', sheet_name='перевод', skiprows=15, header=None)
+    df_eb['site_page'] = ''
+    for num in range(len(df4)):
+        mask = df_eb['Страница входа, ур. 3'].isin(df4.iloc[num])
+        df_eb.loc[mask, 'site_page'] = df4.iloc[num][1]
+    return df_eb
+
+
+el_b_df = load_data_eb()
+fig_site_top3 = go.Figure(data=[go.Pie(labels=el_b_df['site_page'], values=el_b_df['Глубина просмотра'], hole=.3)])
+fig_site_top3.update_layout(title_text="Глубина просмотра раздела Электронный бюджет", autosize=True, piecolorway=[
+    '#26205b', '#3257af', '#c8abd5', '#f9c5d8', '#b83e74', '#8d0837', '#9456ef'])
+
+
 def eval_expression(input_string):
     """Эта функция полностью запрещает использование имен в eval(). (В целях безопасности)"""
     code = compile(input_string, "<string>", "eval")
@@ -28,6 +84,24 @@ def eval_expression(input_string):
         raise NameError(f"Использование имён запрещено.")
     return eval(code, {"__builtins__": {}}, {})
 
+
+fig_site_top = go.Figure([go.Bar(
+    x=site_top_df['Визиты'],
+    y=site_top_df['Название'],
+    orientation='h',
+    text=site_top_df['Визиты'])])
+fig_site_top.update_traces(textposition='outside')
+fig_site_top.update_layout(
+    title_text="Количество визитов")
+
+labels = list(site_label1['Название'].head(5))
+labels.append("Остальные")
+values = list(site_label1['Посетители'].head(5))
+values.append(site_label1.loc[5:14]['Посетители'].sum())
+
+fig_site_top2 = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
+fig_site_top2.update_layout(
+    title_text="Количество посетителей")
 
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -49,6 +123,7 @@ app.layout = html.Div([
                             display_format='DD-MM-YYYY',
                             min_date_allowed=date(2019, 9, 1),
                             max_date_allowed=date(2020, 12, 31),
+                            # initial_visible_month=date(current_year, current_month, current_day),
                             start_date=date(current_year, current_month, current_day),
                             end_date=date(end_year, end_month, end_day),
                             clearable=False,
@@ -73,7 +148,7 @@ app.layout = html.Div([
                                      searchable=False,
                                      style=dict(width='250px', margin='30px, 0px')),
                         dcc.Graph(id='users_figure'),
-                    ]),
+                    ]),  # html div user graph
                     html.Hr(),
                     html.H3('Техническая поддержка'),
                     html.Hr(),
@@ -91,55 +166,54 @@ app.layout = html.Div([
                                      searchable=False,
                                      style=dict(width='250px', margin='30px, 0px')),
                         dcc.Graph(id='tech_figure'),
-                    ]),
-                ], className='h3'),
+                    ]),  # html div tech graph
+                ], className='h3'),  # tab user
                 dcc.Tab(label='Работа информационных систем', value='months', children=[
 
-                ]),
+                ]),  # tab tech
                 dcc.Tab(label='Статистика сайта', value='s', children=[
                     html.Br(),
                     html.Div([
-                        html.Label("Выберите период: ", className='two columns'),
-                        dcc.DatePickerRange(
-                            id='date_site',
-                            display_format='DD-MM-YYYY',
-                            min_date_allowed=date(2019, 9, 1),
-                            max_date_allowed=date(2020, 12, 31),
-                            start_date=date(current_year, current_month, current_day),
-                            end_date=date(end_year, end_month, end_day),
-                            clearable=False,
-                            with_portal=True,
-                            className='four columns'
-                        ),
-                        html.Div(id='out_date_range_site'),
+                        html.Table([
+                            html.Tr([
+                                html.Td([
+                                    html.Label('Суммарное количество визитов за год'),
+                                ]),
+                                html.Td([
+                                    html.Label(site_1_df['Визиты'][0]),
+                                ]),
+                            ]),
+                            html.Tr([
+                                html.Td(html.Label('Количество уникальных посетителей за год')),
+                                html.Td(html.Label(site_1_df['Посетители'][0])),
+                            ]),
+                        ], className='table'),
                     ]),
                     html.Br(),
                     html.Hr(),
-                    html.H3('Статистика посещаний разделов сайта'),
+                    html.H3('Рейтинг посещаемости разделов сайта за год'),
                     html.Div([
-                        html.Hr(),
-                        html.Br(),
-                        html.Br(),
-                        dcc.Dropdown(id='site_dropdown',
-                                     value='[True, True, True, True, False, False, False, False]',
-                                     options=[
-                                         dict(label='Столбчатая диаграмма', value='[True, True, True, True, False, '
-                                                                                  'False, False, False]'),
-                                         dict(label='Линейный график', value='[False, False, False, False, True, '
-                                                                             'True, True, True]')],
-                                     clearable=False,
-                                     searchable=False,
-                                     className='dropdown',
-                                     style=dict(width='250px', margin='30px, 0px')),
-                        dcc.Graph(id='site_figure'),
-                    ]),
-
-                ]),
-            ]),
+                        dcc.Graph(id='site_top_fig',
+                                  figure=fig_site_top
+                                  ),
+                    ], className='six columns'),
+                    html.Div([
+                        dcc.Graph(id='site_top_fig2',
+                                  figure=fig_site_top2
+                                  ),
+                    ], className='five columns'),
+                    html.H3('Рейтинг посещаемости разделов сайта за год'),
+                    html.Div([
+                        dcc.Graph(id='site_top_fig3',
+                                  figure=fig_site_top3
+                                  ),
+                    ], className='six columns'),
+                ]),  # tab site
+            ]),  # main tabs end
             html.Div(id='tabs_content')
-        ])
-    ])
-])
+        ])  # html.div 2
+    ])  # html.div 1
+])  # app layout end
 
 
 @app.callback(
@@ -149,6 +223,7 @@ app.layout = html.Div([
      Input('date_user', 'end_date'),
      ])
 def update_figure_user(figure_user_type, start_date_user, end_date_user):
+
     df_user = load_data()
     filtered_df = df_user[(df_user.index >= start_date_user) & (df_user.index <= end_date_user)]
 
@@ -204,7 +279,8 @@ def update_figure_user(figure_user_type, start_date_user, end_date_user):
      Input('date_user', 'start_date'),
      Input('date_user', 'end_date'),
      ])
-def update_figure_user(figure_tech_type, start_date_tech, end_date_tech):
+def update_figure_tech(figure_tech_type, start_date_tech, end_date_tech):
+
     df_tech = load_data()
     filtered_df_tech = df_tech[(df_tech.index >= start_date_tech) & (df_tech.index <= end_date_tech)]
 
@@ -272,93 +348,5 @@ def update_figure_user(figure_tech_type, start_date_tech, end_date_tech):
         "layout": layout_tech}
 
 
-@app.callback(
-    Output('site_figure', 'figure'),
-    [Input('site_dropdown', 'value'),
-     Input('date_site', 'start_date'),
-     Input('date_site', 'end_date'),
-     ])
-def update_figure_user(figure_site_type, start_date_site, end_date_site):
-    df_site = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
-    df_site.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
-    df_site.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
-    df_site.set_index(df_site.columns[0], inplace=True)
-
-    filtered_df_site = df_site[(df_site.index >= start_date_site) & (df_site.index <= end_date_site)]
-
-    figure_site_type = eval_expression(figure_site_type)
-
-    trace_budget_bar = go.Bar(x=filtered_df_site.index,
-                              y=filtered_df_site['Электронный бюджет'],
-                              base=0,
-                              marker=dict(color='#d54062'),
-                              name='Электронный бюджет',
-                              visible=figure_site_type[0])
-
-    trace_news_bar = go.Bar(x=filtered_df_site.index,
-                            y=filtered_df_site['Новости'],
-                            base=0,
-                            marker=dict(color='#ffa36c'),
-                            name='Новости',
-                            visible=figure_site_type[1])
-
-    trace_about_bar = go.Bar(x=filtered_df_site.index,
-                             y=filtered_df_site['О межрегиональном бухгалтерском УФК'],
-                             base=0,
-                             marker=dict(color='#ebdc87'),
-                             name='О межрегиональном бухгалтерском УФК',
-                             visible=figure_site_type[2])
-
-    trace_other_bar = go.Bar(x=filtered_df_site.index,
-                             y=filtered_df_site['Иная деятельность'],
-                             base=0,
-                             marker=dict(color='#799351'),
-                             name='Иная деятельность',
-                             visible=figure_site_type[3])
-
-    trace_budget_line = go.Scatter(x=filtered_df_site.index,
-                                   y=filtered_df_site['Электронный бюджет'],
-                                   name='Электронный бюджет',
-                                   mode='lines+markers',
-                                   marker=dict(size=15),
-                                   line=dict(color='#d54062', width=5),
-                                   visible=figure_site_type[4])
-
-    trace_news_line = go.Scatter(x=filtered_df_site.index,
-                                 y=filtered_df_site['Новости'],
-                                 name='Новости',
-                                 mode='lines+markers',
-                                 marker=dict(size=15),
-                                 line=dict(color='#ffa36c', width=5),
-                                 visible=figure_site_type[5])
-
-    trace_about_line = go.Scatter(x=filtered_df_site.index,
-                                  y=filtered_df_site['О межрегиональном бухгалтерском УФК'],
-                                  name='О межрегиональном бухгалтерском УФК',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='#ebdc87', width=5),
-                                  visible=figure_site_type[6])
-    trace_other_line = go.Scatter(x=filtered_df_site.index,
-                                  y=filtered_df_site['Иная деятельность'],
-                                  name='Иная деятельность',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='#799351', width=5),
-                                  visible=figure_site_type[7])
-
-    data_site = [trace_budget_bar, trace_news_bar, trace_about_bar, trace_other_bar, trace_budget_line,
-                 trace_news_line, trace_about_line, trace_other_line]
-
-    layout_site = dict(
-        title='Статистика посещаний разделов сайта',
-        autosize=True,
-    )
-
-    return {
-        "data": data_site,
-        "layout": layout_site}
-
-
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.43', port=8060)
+    app.run_server(debug=True, host='192.168.2.43', port=8050)
