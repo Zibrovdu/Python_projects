@@ -1,35 +1,42 @@
 import pandas as pd
-from datetime import timedelta
+from datetime import date, timedelta
+
+current_month = date.today().month
+current_day = date.today().day
+current_year = date.today().year
 
 
 def LoadEtspData():
-    df = pd.read_excel('assets/Выгрузка.xlsx')
-    df['Дата решения'].fillna('2020-12-01 00:00:00', inplace=True)
+    df = pd.read_excel('assets/rt.xls', usecols='A,B,D,E,G')
+    df['Дата решения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
+    df['Дата/время регистрации'] = pd.to_datetime(df['Дата/время регистрации'])
     df['Дата решения'] = pd.to_datetime(df['Дата решения'])
-    df['timedelta'] = df['Дата решения'] - df['Дата регистрации']
+    df['timedelta'] = df['Дата решения'] - df['Дата/время регистрации']
 
     empl_df = pd.read_excel('assets/employes.xlsx', usecols='B,C')
-    df = df.merge(empl_df, how='left', left_on=['Затронутый пользователь'], right_on=['фио'])
+    df = df.merge(empl_df, how='left', left_on=['Имя затронутого пользователя'], right_on=['фио'])
+    del empl_df
     df.drop('фио', axis=1, inplace=True)
 
-    df['month_open'] = df['Дата регистрации'].dt.month
+    df['month_open'] = df['Дата/время регистрации'].dt.month
     df['month_solved'] = df['Дата решения'].dt.month
     df['count_task'] = 1
-    df['start_date'] = df['Дата регистрации'].dt.date.apply(lambda x: str(x))
+    df['start_date'] = df['Дата/время регистрации'].dt.date.apply(lambda x: str(x))
     df['finish_date'] = df['Дата решения'].dt.date.apply(lambda x: str(x))
 
     return df
 
 
 def LoadSueData():
-    df = pd.read_excel('assets/exportSD.xlsx', usecols='K,M,R,V,X,AK')
-    df['Фактическое время выполнения'].fillna('2020-12-01 00:00:00', inplace=True)
+    df = pd.read_excel('assets/exportSD_current.xlsx', usecols='H,J,O,S,U,AH')
+    df['Фактическое время выполнения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
     df['Описание'].fillna(' ', inplace=True)
     df['Фактическое время выполнения'] = pd.to_datetime(df['Фактическое время выполнения'])
     df['timedelta'] = df['Фактическое время выполнения'] - df['Дата/время регистрации']
 
     empl_df = pd.read_excel('assets/employes.xlsx', usecols='B,C')
     df = df.merge(empl_df, how='left', left_on=['Получатель услуг'], right_on=['фио'])
+    del empl_df
     df.drop('фио', axis=1, inplace=True)
 
     df['month_open'] = df['Дата/время регистрации'].dt.month
@@ -39,6 +46,22 @@ def LoadSueData():
     df['finish_date'] = df['Фактическое время выполнения'].dt.date.apply(lambda x: str(x))
 
     return df
+
+
+def LoadOspData():
+    osp_df = pd.read_excel('assets/osp.xlsx', usecols='B,D,G,S,AH')
+    osp_df['Фактическое время выполнения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00',
+                                                  inplace=True)
+    osp_df['Описание'].fillna(' ', inplace=True)
+    osp_df['timedelta'] = osp_df['Фактическое время выполнения'] - osp_df['Дата регистрации']
+    osp_df['month_open'] = osp_df['Дата регистрации'].dt.month
+    osp_df['month_solved'] = osp_df['Фактическое время выполнения'].dt.month
+    osp_df['count_task'] = 1
+    osp_df['start_date'] = osp_df['Дата регистрации'].dt.date.apply(lambda x: str(x))
+    osp_df['finish_date'] = osp_df['Фактическое время выполнения'].dt.date.apply(lambda x: str(x))
+    osp_df.rename(columns={'Вложенное подразделение 2': 'Отдел'}, inplace=True)
+
+    return osp_df
 
 
 def GetTimeData(df):
@@ -141,7 +164,7 @@ def GetIntent(df):
             mask = temp_df['text'].str.contains(i)
             temp_df.loc[mask, 'intent'] = item
 
-    total_df = pd.DataFrame(columns=['num', 'text', 'intent'])
+    # total_df = pd.DataFrame(columns=['num', 'text', 'intent'])
 
     df3 = temp_df[temp_df.loc[:, 'intent'] == '1С ЭБ']
     mask = df3['text'].str.contains('работает')
@@ -214,56 +237,34 @@ def GetIntent(df):
 
     df.reset_index(inplace=True)
     df.rename(columns={'index': 'num'}, inplace=True)
-    merged_df = pd.DataFrame()
     merged_df = df.merge(total_df[['num', 'intent']], on='num', how='left')
     merged_df.drop('num', axis=1, inplace=True)
     df.drop('num', axis=1, inplace=True)
 
-    temp_df, df3, df4, df5, df6, df7, total_df, temp_df1 = 0, 0, 0, 0, 0, 0, 0, 0
+    del temp_df, df3, df4, df5, df6, df7, total_df, temp_df1
 
     return merged_df
 
 
-def EtspCountMeanTime(etsp_filtered_df):
-    etsp_duration = etsp_filtered_df['timedelta'].mean()
-    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+def CountMeanTime(filtered_df):
+    duration = filtered_df['timedelta'].mean()
+    count_tasks = filtered_df['count_task'].sum()
 
     # преобразование в дни, часы, минуты и секунды
-    days, seconds = etsp_duration.days, etsp_duration.seconds
+    days, seconds = duration.days, duration.seconds
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     seconds = (seconds % 60)
-    avg_time_etsp = days, hours, minutes, seconds
+    avg_time = days, hours, minutes, seconds
 
-    if etsp_count_tasks == 0:
-        etsp_avg_time = 'Данные отсутствуют'
-    elif avg_time_etsp[0] == 0:
-        etsp_avg_time = f'{avg_time_etsp[1]} час. {avg_time_etsp[2]} мин.'
+    if count_tasks == 0:
+        avg_time = 'Данные отсутствуют'
+    elif avg_time[0] == 0:
+        avg_time = f'{avg_time[1]} час. {avg_time[2]} мин.'
     else:
-        etsp_avg_time = f'{avg_time_etsp[0]} дн. {avg_time_etsp[1]} час. {avg_time_etsp[2]} мин.'
+        avg_time = f'{avg_time[0]} дн. {avg_time[1]} час. {avg_time[2]} мин.'
 
-    return etsp_avg_time
-
-
-def SueCountMeanTime(sue_filtered_df):
-    sue_duration = sue_filtered_df['timedelta'].mean()
-    sue_count_tasks = sue_filtered_df['count_task'].sum()
-
-    # преобразование в дни, часы, минуты и секунды
-    days, seconds = sue_duration.days, sue_duration.seconds
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    seconds = (seconds % 60)
-    avg_time_sue = days, hours, minutes, seconds
-
-    if sue_count_tasks == 0:
-        sue_avg_time = 'Данные отсутствуют'
-    elif avg_time_sue[0] == 0:
-        sue_avg_time = f'{avg_time_sue[1]} час. {avg_time_sue[2]} мин.'
-    else:
-        sue_avg_time = f'{avg_time_sue[0]} дн. {avg_time_sue[1]} час. {avg_time_sue[2]} мин.'
-
-    return sue_avg_time
+    return avg_time
 
 
 def LoadInfSystemsData():
