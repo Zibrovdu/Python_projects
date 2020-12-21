@@ -3,57 +3,95 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
+from LoadData import LoadEtspData, LoadSueData, EtspCountMeanTime, SueCountMeanTime, LoadInfSystemsData
 
 current_month = date.today().month
-current_week = date.today().isocalendar()[1]
-# current_week = 8
-# Текущий формат файла с отчетом (горизонтальная таблица)
+current_day = date.today().day
+current_year = date.today().year
 
-# df = pd.read_excel('data.xlsx', skiprows=7)
-# df = df.drop('Unnamed: 0', axis=1)
-# df.set_index(df.columns[0], inplace=True)
-# df = df.T
-# df['month'] = pd.to_datetime(df.index)
-# df['month'] = df['month'].dt.month
+end_day = (date.today() + timedelta(days=7)).day
+end_month = (date.today() + timedelta(days=7)).month
+end_year = (date.today() + timedelta(days=7)).year
 
-# Предлагаемый формат файла с отчетом (вертикальная таблица)
-df = pd.read_excel('data.xlsx', sheet_name='Данные')
-df.set_index(df.columns[0], inplace=True)
-df['month'] = pd.to_datetime(df.index)
-df['month'] = df['month'].dt.month
-df['week'] = pd.to_datetime(df.index)
-df['week'] = df['week'].dt.isocalendar().week
 
-weeks_num_tech = [week for week in df['week'].unique()]
-weeks_num_tech = sorted(weeks_num_tech)
-if current_week < 11 or len(weeks_num_tech) < 10:
-    show_weeks_tech = weeks_num_tech[current_week - 1::-1]
-else:
-    list_week_tech = current_week - 10
-    show_weeks_tech = weeks_num_tech[current_week - 1:list_week_tech:-1]
+def load_data():
+    df_load = pd.read_excel('data.xlsx', sheet_name='Данные')
+    df_load.set_index(df_load.columns[0], inplace=True)
+    # df_load['month'] = pd.to_datetime(df_load.index)
+    # df_load['month'] = df_load['month'].dt.month
+    # df_load['year'] = pd.to_datetime(df_load.index)
+    # df_load['year'] = df_load['year'].dt.year
+    # df_load['day'] = pd.to_datetime(df_load.index)
+    # df_load['day'] = df_load['day'].dt.day
+    return df_load
 
-# Загружаем данные по посещению сайта
-site_df = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
-site_df.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
-site_df.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
-site_df.set_index(site_df.columns[0], inplace=True)
-site_df['month'] = pd.to_datetime(site_df.index)
-site_df['month'] = site_df['month'].dt.month
-site_df['week'] = pd.to_datetime(site_df.index)
-site_df['week'] = site_df['week'].dt.isocalendar().week
 
-weeks_num_site = [week for week in site_df['week'].unique()]
-weeks_num_site = sorted(weeks_num_site)
-if current_week < 11 or len(weeks_num_site) < 10:
-    show_weeks_site = weeks_num_site[current_week - 1::-1]
-else:
-    list_week_site = current_week - 10
-    show_weeks_site = weeks_num_site[current_week - 1:list_week_site:-1]
+def load_data_site():
+    df = pd.read_excel('site.xlsx', skiprows=6)
+    df['Страница входа, ур. 4'] = df['Страница входа, ур. 4'].fillna('')
+    df2 = df[df['Страница входа, ур. 4'].str.contains('molodezhnyy-sovet')][['Страница входа, ур. 4', 'Визиты',
+                                                                             'Посетители', 'Просмотры',
+                                                                             'Доля новых посетителей']]
+    df2 = pd.DataFrame(df2.groupby(['Страница входа, ур. 4'], as_index=False)[['Визиты', 'Посетители', 'Просмотры',
+                                                                               'Доля новых посетителей']].sum())
+    df2 = df2.rename(columns={'Страница входа, ур. 4': 'Страница входа, ур. 2'})
+    df = pd.DataFrame(df.groupby(['Страница входа, ур. 2'], as_index=False)[
+                          ['Визиты', 'Посетители', 'Просмотры', 'Доля новых посетителей']].sum())
+    df.loc[13, 'Страница входа, ур. 2'] = 'https://mbufk.roskazna.gov.ru/'
+    df = df.append(df2).reset_index()
+    df.drop('index', axis=1, inplace=True)
+    df.loc[8, ['Визиты', 'Посетители', 'Просмотры', 'Доля новых посетителей']] = df.loc[8, ['Визиты', 'Посетители',
+                                                                                            'Просмотры',
+                                                                                            'Доля новых посетителей']] - \
+                                                                                 df.loc[14, ['Визиты', 'Посетители',
+                                                                                             'Просмотры',
+                                                                                             'Доля новых посетителей']]
+    df2 = pd.read_excel('site.xlsx', sheet_name='перевод', header=None)
+    df['Название'] = ''
+    for num in range(len(df2)):
+        mask = df['Страница входа, ур. 2'].isin(df2.iloc[num])
+        df.loc[mask, 'Название'] = df2.iloc[num][1]
+    return df
 
-external_stylesheets = ['assets/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+site_top_df = load_data_site()
+site_top_df.sort_values('Визиты', inplace=True)
+site_label = site_top_df.sort_values('Название').reset_index().drop('index', axis=1)
+
+site_1_df = pd.read_excel('site.xlsx', skiprows=6, nrows=1, usecols='A,F,G,H,N')
+
+site_label1 = site_top_df.sort_values('Посетители', ascending=False).reset_index().drop('index', axis=1)
+
+
+def load_data_eb():
+    df = pd.read_excel('site.xlsx', skiprows=6)
+    df = df[df['Страница входа, ур. 2'] == 'https://mbufk.roskazna.gov.ru/elektronnyy-byudzhet/']
+    df_eb = df.groupby('Страница входа, ур. 3', as_index=False)['Глубина просмотра'].sum()
+    df4 = pd.read_excel('site.xlsx', sheet_name='перевод', skiprows=15, header=None)
+    df_eb['site_page'] = ''
+    for num in range(len(df4)):
+        mask = df_eb['Страница входа, ур. 3'].isin(df4.iloc[num])
+        df_eb.loc[mask, 'site_page'] = df4.iloc[num][1]
+    return df_eb
+
+
+el_b_df = load_data_eb()
+fig_site_top3 = go.Figure(data=[go.Pie(labels=el_b_df['site_page'], values=el_b_df['Глубина просмотра'], hole=.3)])
+fig_site_top3.update_layout(title_text="Глубина просмотра раздела Электронный бюджет", autosize=True, piecolorway=[
+    '#26205b', '#3257af', '#c8abd5', '#f9c5d8', '#b83e74', '#8d0837', '#9456ef'])
+
+etsp_df = LoadEtspData()
+sue_df = LoadSueData()
+inf_systems_data = LoadInfSystemsData()
+
+
+# df_site = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
+# df_site.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
+# df_site.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
+# df_site.set_index(df_site.columns[0], inplace=True)
 
 
 def eval_expression(input_string):
@@ -64,6 +102,37 @@ def eval_expression(input_string):
     return eval(code, {"__builtins__": {}}, {})
 
 
+fig_site_top = go.Figure([go.Bar(
+    x=site_top_df['Визиты'],
+    y=site_top_df['Название'],
+    orientation='h',
+    text=site_top_df['Визиты'])])
+fig_site_top.update_traces(textposition='outside')
+fig_site_top.update_layout(
+    title_text="Количество визитов")
+
+labels = list(site_label1['Название'].head(5))
+labels.append("Остальные")
+values = list(site_label1['Посетители'].head(5))
+values.append(site_label1.loc[5:14]['Посетители'].sum())
+
+fig_site_top2 = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
+fig_site_top2.update_layout(
+    title_text="Количество посетителей")
+
+fig_inf_systems = go.Figure()
+for i in range(len(inf_systems_data)):
+    fig_inf_systems.add_trace(go.Bar(y=inf_systems_data.columns,
+                                     x=inf_systems_data.iloc[i],
+                                     name=inf_systems_data.index[i],
+                                     orientation='h'))
+fig_inf_systems.update_layout(barmode='stack')
+fig_inf_systems.update_yaxes(tickmode="linear")
+
+# df = load_data()
+external_stylesheets = ['assets/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
 app.layout = html.Div([
     html.Div([
         # html.H1("Межрегиональное бухгалтерское УФК"),
@@ -73,587 +142,220 @@ app.layout = html.Div([
     html.Div([
         html.Div([
             dcc.Tabs(id='choice_period', value='weeks', children=[
-                dcc.Tab(label='Неделя', value='weeks', children=[
+                dcc.Tab(label='Работа с пользователями', value='weeks', children=[
+                    html.Br(),
                     html.Div([
-                        html.Div([
-                            html.Center(html.H3('Сопровождение пользователей')),
-                            dcc.Dropdown(id='user_dropdown_week',
-                                         options=[
-                                             dict(label='Линейный график', value='[True, True, False, False]'),
-                                             dict(label='Столбчатая диаграмма', value='[False, False, True, True]')],
-                                         value='[True, True, False, False]',
-                                         clearable=False,
-                                         searchable=False,
-                                         style=dict(width='250px', margin='30px, 0px')),
-                            dcc.Graph(id='users_week'),
-                            dcc.Slider(id='week-slider_users',
-                                       min=min(show_weeks_tech),
-                                       max=max(show_weeks_tech),
-                                       value=current_week,
-                                       marks={str(week): str(week) for week in show_weeks_tech},
-                                       step=None)
-                        ], className='six columns'),
-                        html.Div([
-                            html.Center(html.H3('Обращения в тех поддержку')),
-                            dcc.Dropdown(id='tech_dropdown_week',
-                                         options=[
-                                             dict(label='Линейный график', value='[True, True, True, False, False, '
-                                                                                 'False]'),
-                                             dict(label='Столбчатая диаграмма', value='[False, False, False, True, '
-                                                                                      'True, True]')],
-                                         value='[True, True, True, False, False, False]',
-                                         clearable=False,
-                                         searchable=False,
-                                         style=dict(width='250px', margin='30px, 0px')),
-                            dcc.Graph(id='tech_week'),
-                            dcc.Slider(id='week-slider_tech',
-                                       min=min(show_weeks_tech),
-                                       max=max(show_weeks_tech),
-                                       value=current_week,
-                                       marks={str(week): str(week) for week in show_weeks_tech},
-                                       step=None)
-                        ], className='six columns'),
-                    ], className='row'),
+                        html.Label("Выберите период: ", className='two columns'),
+                        dcc.DatePickerRange(
+                            id='date_user',
+                            display_format='DD-MM-YYYY',
+                            min_date_allowed=date(2019, 9, 1),
+                            max_date_allowed=date(2020, 12, 31),
+                            # initial_visible_month=date(current_year, current_month, current_day),
+                            start_date=date(2020, 10, 1),
+                            end_date=date(2020, 10, 10),
+                            # start_date=date(current_year, current_month, current_day),
+                            # end_date=date(end_year, end_month, end_day),
+                            clearable=False,
+                            # with_portal=True,
+                            className='four columns'
+                        ),
+                        html.Div(id='out_date_range_user'),
+                    ]),  # range_period
+                    # html.Br(),
+                    # html.Hr(),
+                    # html.H3('Сопровождение пользователей'),
                     html.Div([
-                        html.H3(children="Статистика посещаний разделов сайта")
-                    ], className='zagolovok'),
+                        html.Table([
+                            html.Tr([
+                                html.Td([html.Label('Количество обращений'), ]),
+                                html.Td(html.Label('Количество пользователей')),
+                                html.Td('Среднее время решения', colSpan=2)
+                            ]),
+                            html.Tr([
+                                html.Td(id='tasks', rowSpan=2),
+                                html.Td(id='users', rowSpan=2),
+                                html.Td('ETSP'),
+                                html.Td('SUE')
+                            ]),
+                            html.Tr([
+                                html.Td(id='etsp-time'),
+                                html.Td(id='sue-time')
+                            ]),
+                            html.Tr([
+
+                            ]),
+                            html.Tr([
+
+                            ]),
+                        ], className='table1'),
+                    ]),
                     html.Div([
-                        dcc.Dropdown(id='dropdown_site_week',
-                                     value='[True, True, True, True, False, False, False, False]',
-                                     options=[
-                                         dict(label='Столбчатая диаграмма', value='[True, True, True, True, False, '
-                                                                                  'False, False, False]'),
-                                         dict(label='Линейный график', value='[False, False, False, False, True, '
-                                                                             'True, True, True]')],
-                                     clearable=False,
-                                     searchable=False,
-                                     className='dropdown',
-                                     style=dict(width='250px', margin='30px, 0px')),
-                        dcc.Graph(id='site_week'),
-                        dcc.Slider(id='slider_site_week',
-                                   min=min(show_weeks_site),
-                                   max=max(show_weeks_site),
-                                   value=current_week,
-                                   marks={str(week): str(week) for week in show_weeks_site},
-                                   step=None)
-                    ], className='eleven columns')
-                ]),
-                dcc.Tab(label='Месяц', value='months', children=[
+                        dcc.Graph(id='users_figure'),
+                    ], className='four columns'),  # html div user graph
                     html.Div([
-                        html.Div([
-                            html.Center(html.H3('Сопровождение пользователей')),
-                            dcc.Dropdown(id='user_dropdown_month',
-                                         options=[
-                                             dict(label='Линейный график', value='[True, True, False, False]'),
-                                             dict(label='Столбчатая диаграмма', value='[False, False, True, True]')],
-                                         value='[True, True, False, False]',
-                                         clearable=False,
-                                         searchable=False,
-                                         style=dict(width='250px', margin='30px, 0px')),
-                            dcc.Graph(id='users_month'),
-                            dcc.Slider(id='month-slider_users',
-                                       min=df['month'].min(),
-                                       max=df['month'].max(),
-                                       value=current_month,
-                                       marks={str(month): str(month) for month in df['month'].unique()},
-                                       step=None)
-                        ], className='six columns'),
-                        html.Div([
-                            html.Center(html.H3('Обращения в тех поддержку')),
-                            dcc.Dropdown(id='tech_dropdown_month',
-                                         options=[
-                                             dict(label='Линейный график', value='[True, True, True, False, False, '
-                                                                                 'False]'),
-                                             dict(label='Столбчатая диаграмма', value='[False, False, False, True, '
-                                                                                      'True, True]')],
-                                         value='[True, True, True, False, False, False]',
-                                         clearable=False,
-                                         searchable=False,
-                                         style=dict(width='250px', margin='30px, 0px')),
-                            dcc.Graph(id='tech_month'),
-                            dcc.Slider(id='month-slider_tech',
-                                       min=df['month'].min(),
-                                       max=df['month'].max(),
-                                       value=current_month,
-                                       marks={str(month): str(month) for month in df['month'].unique()},
-                                       step=None)
-                        ], className='six columns'),
-                    ], className='row'),
+                        dcc.Graph(id='support_figure'),
+                    ], className='seven columns'),  # html div support graph
+                ], className='h3'),  # tab user
+                dcc.Tab(label='Работа информационных систем', value='months', children=[
                     html.Div([
-                        html.H3(children="Статистика посещаний разделов сайта")
-                    ], className='zagolovok'),
+                        dcc.Graph(id='inf_systems',
+                                  figure=fig_inf_systems
+                                  )
+
+                    ], style=dict(border='1px solid #333'))
+
+                ]),  # tab tech
+                dcc.Tab(label='Статистика сайта', value='s', children=[
+                    html.Br(),
                     html.Div([
-                        dcc.Dropdown(id='dropdown_site_month',
-                                     value='[True, True, True, True, False, False, False, False]',
-                                     options=[
-                                         dict(label='Столбчатая диаграмма', value='[True, True, True, True, False, '
-                                                                                  'False, False, False]'),
-                                         dict(label='Линейный график',
-                                              value='[False, False, False, False, True, True, True, True]')],
-                                     clearable=False,
-                                     searchable=False,
-                                     className='dropdown',
-                                     style=dict(width='250px', margin='30px, 0px')),
-                        dcc.Graph(id='site_month'),
-                        dcc.Slider(id='slider_site_month',
-                                   min=df['month'].min(),
-                                   max=df['month'].max(),
-                                   value=current_month,
-                                   marks={str(month): str(month) for month in df['month'].unique()},
-                                   step=None)
-                    ], className='eleven columns')
-                ]), ]),
+                        html.Table([
+                            html.Tr([
+                                html.Td([
+                                    html.Label('Суммарное количество визитов за год'),
+                                ]),
+                                html.Td([
+                                    html.Label(site_1_df['Визиты'][0]),
+                                ]),
+                            ]),
+                            html.Tr([
+                                html.Td(html.Label('Количество уникальных посетителей за год')),
+                                html.Td(html.Label(site_1_df['Посетители'][0])),
+                            ]),
+                        ], className='table'),
+                    ]),
+                    html.Br(),
+                    html.Hr(),
+                    html.H3('Рейтинг посещаемости разделов сайта за год'),
+                    html.Div([
+                        # html.Hr(),
+                        # html.Br(),
+                        # dcc.Dropdown(id='site_dropdown1',
+                        #              className = 'dropdown',),
+                        dcc.Graph(id='site_top_fig',
+                                  figure=fig_site_top
+                                  ),
+                    ], className='six columns'),
+                    # html.Div([
+                    #     html.Br(),
+                    #     html.Br(),
+                    # ]),
+                    html.Div([
+                        # html.Hr(),
+                        # html.Br(),
+                        # dcc.Dropdown(id='site_dropdown1',
+                        #              className = 'dropdown',),
+                        dcc.Graph(id='site_top_fig2',
+                                  figure=fig_site_top2
+                                  ),
+                    ], className='five columns'),
+                    html.H3('Рейтинг посещаемости разделов сайта за год'),
+                    html.Div([
+                        dcc.Graph(id='site_top_fig3',
+                                  figure=fig_site_top3
+                                  ),
+                    ], className='six columns'),
+                ]),  # tab site
+            ], className='tab'),  # main tabs end
             html.Div(id='tabs_content')
-        ])
-    ])
-])
+        ])  # html.div 2
+    ])  # html.div 1
+])  # app layout end
 
 
 @app.callback(
-    Output('users_week', 'figure'),
-    Output('users_month', 'figure'),
-    [Input('choice_period', 'value'),
-     Input('week-slider_users', 'value'),
-     Input('user_dropdown_week', 'value'),
-     Input('month-slider_users', 'value'),
-     Input('user_dropdown_month', 'value')
+    Output('users_figure', 'figure'),
+    Output('tasks', 'children'),
+    Output('users', 'children'),
+    Output('etsp-time', 'children'),
+    Output('sue-time', 'children'),
+    [Input('date_user', 'start_date'),
+     Input('date_user', 'end_date'),
      ])
-def update_figure_user(tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month):
-    # print('user_graph', tab, selected_week_user, figure_user_type, selected_month_user, figure_user_type_month)
-    df1 = pd.read_excel('data.xlsx', sheet_name='Данные')
-    df1.set_index(df1.columns[0], inplace=True)
-    df1['month'] = pd.to_datetime(df1.index)
-    df1['month'] = df1['month'].dt.month
-    df1['week'] = pd.to_datetime(df1.index)
-    df1['week'] = df1['week'].dt.isocalendar().week
+def update_figure_user(start_date_user, end_date_user):
+    # etsp_df = LoadEtspData()
+    # sue_df = LoadSueData()
 
-    filtered_df_week = df1[df1['week'] == selected_week_user]
-    filtered_df_month = df1[df1['month'] == selected_month_user]
+    etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
+    sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
 
-    if tab == 'weeks':
-        figure_user_type = eval_expression(figure_user_type)
-        trace_office = go.Scatter(x=filtered_df_week.index,
-                                  y=filtered_df_week['Сопровождение пользователя в офисе'],
-                                  name='работа в офисе',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='crimson', width=5),
-                                  visible=figure_user_type[0])
-        trace_online = go.Scatter(x=filtered_df_week.index,
-                                  y=filtered_df_week['Сопровождение пользователя на удаленной работе'],
-                                  name='удаленная работа',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='lightslategrey', width=5),
-                                  visible=figure_user_type[1])
-        trace_offline_bar = go.Bar(x=filtered_df_week.index,
-                                   y=filtered_df_week['Сопровождение пользователя в офисе'],
-                                   base=0,
-                                   marker=dict(color='crimson'),
-                                   name='работа в офисе',
-                                   visible=figure_user_type[2])
-        trace_online_bar = go.Bar(x=filtered_df_week.index,
-                                  y=filtered_df_week['Сопровождение пользователя на удаленной работе'],
-                                  base=0,
-                                  marker=dict(color='lightslategrey'),
-                                  name='удаленная работа',
-                                  visible=figure_user_type[3])
+    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+    sue_count_tasks = sue_filtered_df['count_task'].sum()
 
-        data_user = [trace_office, trace_online, trace_offline_bar, trace_online_bar]
+    total_users = len(etsp_filtered_df['Затронутый пользователь'].unique()) + len(
+        sue_filtered_df['Получатель услуг'].unique())
 
-        layout_user = dict(
-            autosize=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1,
-                xanchor="right",
-                x=1),
-        )
+    etsp_avg_time = EtspCountMeanTime(etsp_filtered_df)
+    sue_avg_time = SueCountMeanTime(sue_filtered_df)
 
-        return [{
-            "data": data_user,
-            "layout": layout_user}, {
-            "data": data_user,
-            "layout": layout_user}]
+    trace_offline_bar = go.Bar(y=[etsp_count_tasks, sue_count_tasks],
+                               x=['ЕЦП', 'СУЭ'],
+                               base=0,
+                               marker=dict(color='crimson'))
 
-    elif tab == 'months':
-        figure_user_type_month = eval_expression(figure_user_type_month)
-        trace_office = go.Scatter(x=filtered_df_month.index,
-                                  y=filtered_df_month['Сопровождение пользователя в офисе'],
-                                  name='работа в офисе',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='crimson', width=5),
-                                  visible=figure_user_type_month[0])
-        trace_online = go.Scatter(x=filtered_df_month.index,
-                                  y=filtered_df_month['Сопровождение пользователя на удаленной работе'],
-                                  name='удаленная работа',
-                                  mode='lines+markers',
-                                  marker=dict(size=15),
-                                  line=dict(color='lightslategrey', width=5),
-                                  visible=figure_user_type_month[1])
-        trace_offline_bar = go.Bar(x=filtered_df_month.index,
-                                   y=filtered_df_month['Сопровождение пользователя в офисе'],
-                                   base=0,
-                                   marker=dict(color='crimson'),
-                                   name='работа в офисе',
-                                   visible=figure_user_type_month[2])
-        trace_online_bar = go.Bar(x=filtered_df_month.index,
-                                  y=filtered_df_month['Сопровождение пользователя на удаленной работе'],
-                                  base=0,
-                                  marker=dict(color='lightslategrey'),
-                                  name='удаленная работа',
-                                  visible=figure_user_type_month[3])
+    data_user = [trace_offline_bar]
 
-        data_user = [trace_office, trace_online, trace_offline_bar, trace_online_bar]
+    layout_user = dict(
+        autosize=True,
+        # height=700,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1,
+            xanchor="right",
+            x=1),
+    )
 
-        layout_user = dict(
-            autosize=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1,
-                xanchor="right",
-                x=1),
-        )
+    total_tasks = etsp_count_tasks + sue_count_tasks
 
-        return [{
-            "data": data_user,
-            "layout": layout_user}, {
-            "data": data_user,
-            "layout": layout_user}]
+    return {
+               "data": data_user,
+               "layout": layout_user}, total_tasks, total_users, etsp_avg_time, sue_avg_time
 
 
 @app.callback(
-    Output('tech_week', 'figure'),
-    Output('tech_month', 'figure'),
-    [Input('choice_period', 'value'),
-     Input('week-slider_tech', 'value'),
-     Input('tech_dropdown_week', 'value'),
-     Input('month-slider_tech', 'value'),
-     Input('tech_dropdown_month', 'value')
+    Output('support_figure', 'figure'),
+    [Input('date_user', 'start_date'),
+     Input('date_user', 'end_date'),
      ])
-def update_figure_tech(tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month):
-    # print('tech_graph', tab, selected_week_tech, figure_tech_type, selected_month_tech, figure_tech_type_month)
-    df2 = pd.read_excel('data.xlsx', sheet_name='Данные')
-    df2.set_index(df2.columns[0], inplace=True)
-    df2['month'] = pd.to_datetime(df2.index)
-    df2['month'] = df2['month'].dt.month
-    df2['week'] = pd.to_datetime(df2.index)
-    df2['week'] = df2['week'].dt.isocalendar().week
+def update_figure_support(start_date_user, end_date_user):
+    etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
+    sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
 
-    filtered_df_week = df2[df2['week'] == selected_week_tech]
-    filtered_df_month = df2[df2['month'] == selected_month_tech]
+    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+    sue_count_tasks = sue_filtered_df['count_task'].sum()
 
-    if tab == 'weeks':
-        figure_tech_type = eval_expression(figure_tech_type)
+    etsp_labels = ['ETSP', 'Total']
+    etsp_values = [etsp_count_tasks, sue_count_tasks]
+    sue_labels = ['SUE', 'Total']
+    sue_values = [sue_count_tasks, etsp_count_tasks]
 
-        trace_rtk = go.Scatter(x=filtered_df_week.index,
-                               y=filtered_df_week['РТК'],
-                               name='РТК',
-                               mode='lines+markers',
-                               marker=dict(size=15),
-                               line=dict(color='#67b18d', width=5),
-                               visible=figure_tech_type[0])
+    if (etsp_count_tasks + sue_count_tasks) > 0:
+        etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
+        sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
+    else:
+        etsp_persent = 0
+        sue_persent = 0
 
-        trace_sue = go.Scatter(x=filtered_df_week.index,
-                               y=filtered_df_week['СУЭ'],
-                               name='СУЭ',
-                               mode='lines+markers',
-                               marker=dict(size=15),
-                               line=dict(color='#5794a1', width=5),
-                               visible=figure_tech_type[1])
+    etsp_colors = ['#a92b2b', '#222780']
+    sue_colors = ['#37a17c', '#222780']
 
-        trace_sue_osp = go.Scatter(x=filtered_df_week.index,
-                                   y=filtered_df_week['СУЭ ОСП'],
-                                   name='СУЭ ОСП',
-                                   mode='lines+markers',
-                                   marker=dict(size=15),
-                                   line=dict(color='#9b5050', width=5),
-                                   visible=figure_tech_type[2])
+    fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
 
-        trace_rtk_bar = go.Bar(x=filtered_df_week.index,
-                               y=filtered_df_week['РТК'],
-                               base=0,
-                               marker=dict(color='#67b18d'),
-                               name='РТК',
-                               visible=figure_tech_type[3])
+    fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ETSP", marker_colors=etsp_colors), 1, 1)
+    fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="SUE", marker_colors=sue_colors), 1, 2)
 
-        trace_sue_bar = go.Bar(x=filtered_df_week.index,
-                               y=filtered_df_week['СУЭ'],
-                               base=0,
-                               marker=dict(color='#5794a1'),
-                               name='СУЭ',
-                               visible=figure_tech_type[4])
+    # Use `hole` to create a donut-like pie chart
+    fig.update_traces(hole=.4, hoverinfo="label+percent+name")
 
-        trace_sue_osp_bar = go.Bar(x=filtered_df_week.index,
-                                   y=filtered_df_week['СУЭ ОСП'],
-                                   base=0,
-                                   marker=dict(color='#9b5050'),
-                                   name='СУЭ ОСП',
-                                   visible=figure_tech_type[5])
+    fig.update_layout(
+        # Add annotations in the center of the donut pies.
+        annotations=[dict(text=etsp_persent, x=0.18, y=0.5, align='center', font_size=15, showarrow=False),
+                     dict(text=sue_persent, x=0.83, y=0.5, align='center', font_size=15, showarrow=False)],
+        showlegend=False)
 
-        data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
-
-        layout_tech = dict(
-            autosize=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1,
-                xanchor="right",
-                x=1),
-        )
-
-        return [{
-            "data": data_tech,
-            "layout": layout_tech}, {
-            "data": data_tech,
-            "layout": layout_tech}]
-
-    elif tab == 'months':
-        figure_user_tech_month = eval_expression(figure_tech_type_month)
-
-        trace_rtk = go.Scatter(x=filtered_df_month.index,
-                               y=filtered_df_month['РТК'],
-                               name='РТК',
-                               mode='lines+markers',
-                               marker=dict(size=15),
-                               line=dict(color='#67b18d', width=5),
-                               visible=figure_user_tech_month[0])
-
-        trace_sue = go.Scatter(x=filtered_df_month.index,
-                               y=filtered_df_month['СУЭ'],
-                               name='СУЭ',
-                               mode='lines+markers',
-                               marker=dict(size=15),
-                               line=dict(color='#5794a1', width=5),
-                               visible=figure_user_tech_month[1])
-
-        trace_sue_osp = go.Scatter(x=filtered_df_month.index,
-                                   y=filtered_df_month['СУЭ ОСП'],
-                                   name='СУЭ ОСП',
-                                   mode='lines+markers',
-                                   marker=dict(size=15),
-                                   line=dict(color='#9b5050', width=5),
-                                   visible=figure_user_tech_month[2])
-
-        trace_rtk_bar = go.Bar(x=filtered_df_month.index,
-                               y=filtered_df_month['РТК'],
-                               base=0,
-                               marker=dict(color='#67b18d'),
-                               name='РТК',
-                               visible=figure_user_tech_month[3])
-
-        trace_sue_bar = go.Bar(x=filtered_df_month.index,
-                               y=filtered_df_month['СУЭ'],
-                               base=0,
-                               marker=dict(color='#5794a1'),
-                               name='СУЭ',
-                               visible=figure_user_tech_month[4])
-
-        trace_sue_osp_bar = go.Bar(x=filtered_df_month.index,
-                                   y=filtered_df_month['СУЭ ОСП'],
-                                   base=0,
-                                   marker=dict(color='#9b5050'),
-                                   name='СУЭ ОСП',
-                                   visible=figure_user_tech_month[5])
-
-        data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
-
-        layout_tech = dict(
-            autosize=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1,
-                xanchor="right",
-                x=1),
-        )
-
-        return [{
-            "data": data_tech,
-            "layout": layout_tech}, {
-            "data": data_tech,
-            "layout": layout_tech}]
-
-
-@app.callback(
-    Output('site_week', 'figure'),
-    Output('site_month', 'figure'),
-    [Input('choice_period', 'value'),
-     Input('slider_site_week', 'value'),
-     Input('dropdown_site_week', 'value'),
-     Input('slider_site_month', 'value'),
-     Input('dropdown_site_month', 'value')
-     ])
-def update_figure_site(tab, selected_week_site, figure_site_type, selected_month_site, figure_site_type_month):
-    site_df_upd = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
-    site_df_upd.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
-    site_df_upd.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
-    site_df_upd.set_index(site_df_upd.columns[0], inplace=True)
-    site_df_upd['month'] = pd.to_datetime(site_df_upd.index)
-    site_df_upd['month'] = site_df_upd['month'].dt.month
-    site_df_upd['week'] = pd.to_datetime(site_df_upd.index)
-    site_df_upd['week'] = site_df_upd['week'].dt.isocalendar().week
-
-    filtered_site_df_week = site_df_upd[site_df_upd['week'] == selected_week_site]
-    filtered_site_df_month = site_df_upd[site_df_upd['month'] == selected_month_site]
-
-    if tab == 'weeks':
-        figure_site_type = eval_expression(figure_site_type)
-
-        trace_budget_bar = go.Bar(x=filtered_site_df_week.index,
-                                  y=filtered_site_df_week['Электронный бюджет'],
-                                  base=0,
-                                  marker=dict(color='#d54062'),
-                                  name='Электронный бюджет',
-                                  visible=figure_site_type[0])
-
-        trace_news_bar = go.Bar(x=filtered_site_df_week.index,
-                                y=filtered_site_df_week['Новости'],
-                                base=0,
-                                marker=dict(color='#ffa36c'),
-                                name='Новости',
-                                visible=figure_site_type[1])
-
-        trace_about_bar = go.Bar(x=filtered_site_df_week.index,
-                                 y=filtered_site_df_week['О межрегиональном бухгалтерском УФК'],
-                                 base=0,
-                                 marker=dict(color='#ebdc87'),
-                                 name='О межрегиональном бухгалтерском УФК',
-                                 visible=figure_site_type[2])
-
-        trace_other_bar = go.Bar(x=filtered_site_df_week.index,
-                                 y=filtered_site_df_week['Иная деятельность'],
-                                 base=0,
-                                 marker=dict(color='#799351'),
-                                 name='Иная деятельность',
-                                 visible=figure_site_type[3])
-
-        trace_budget_line = go.Scatter(x=filtered_site_df_week.index,
-                                       y=filtered_site_df_week['Электронный бюджет'],
-                                       name='Электронный бюджет',
-                                       mode='lines+markers',
-                                       marker=dict(size=15),
-                                       line=dict(color='#d54062', width=5),
-                                       visible=figure_site_type[4])
-
-        trace_news_line = go.Scatter(x=filtered_site_df_week.index,
-                                     y=filtered_site_df_week['Новости'],
-                                     name='Новости',
-                                     mode='lines+markers',
-                                     marker=dict(size=15),
-                                     line=dict(color='#ffa36c', width=5),
-                                     visible=figure_site_type[5])
-
-        trace_about_line = go.Scatter(x=filtered_site_df_week.index,
-                                      y=filtered_site_df_week['О межрегиональном бухгалтерском УФК'],
-                                      name='О межрегиональном бухгалтерском УФК',
-                                      mode='lines+markers',
-                                      marker=dict(size=15),
-                                      line=dict(color='#ebdc87', width=5),
-                                      visible=figure_site_type[6])
-        trace_other_line = go.Scatter(x=filtered_site_df_week.index,
-                                      y=filtered_site_df_week['Иная деятельность'],
-                                      name='Иная деятельность',
-                                      mode='lines+markers',
-                                      marker=dict(size=15),
-                                      line=dict(color='#799351', width=5),
-                                      visible=figure_site_type[7])
-
-        data_site = [trace_budget_bar, trace_news_bar, trace_about_bar, trace_other_bar, trace_budget_line,
-                     trace_news_line, trace_about_line, trace_other_line]
-
-        layout_site = dict(
-            title='Статистика посещаний разделов сайта',
-            autosize=True,
-        )
-
-        return [{
-            "data": data_site,
-            "layout": layout_site},
-            {"data": data_site,
-             "layout": layout_site}]
-
-    elif tab == 'months':
-        figure_site_type_month = eval_expression(figure_site_type_month)
-
-        trace_budget_bar = go.Bar(x=filtered_site_df_month.index,
-                                  y=filtered_site_df_month['Электронный бюджет'],
-                                  base=0,
-                                  marker=dict(color='#d54062'),
-                                  name='Электронный бюджет',
-                                  visible=figure_site_type_month[0])
-
-        trace_news_bar = go.Bar(x=filtered_site_df_month.index,
-                                y=filtered_site_df_month['Новости'],
-                                base=0,
-                                marker=dict(color='#ffa36c'),
-                                name='Новости',
-                                visible=figure_site_type_month[1])
-
-        trace_about_bar = go.Bar(x=filtered_site_df_month.index,
-                                 y=filtered_site_df_month['О межрегиональном бухгалтерском УФК'],
-                                 base=0,
-                                 marker=dict(color='#ebdc87'),
-                                 name='О межрегиональном бухгалтерском УФК',
-                                 visible=figure_site_type_month[2])
-
-        trace_other_bar = go.Bar(x=filtered_site_df_month.index,
-                                 y=filtered_site_df_month['Иная деятельность'],
-                                 base=0,
-                                 marker=dict(color='#799351'),
-                                 name='Иная деятельность',
-                                 visible=figure_site_type_month[3])
-
-        trace_budget_line = go.Scatter(x=filtered_site_df_month.index,
-                                       y=filtered_site_df_month['Электронный бюджет'],
-                                       name='Электронный бюджет',
-                                       mode='lines+markers',
-                                       marker=dict(size=15),
-                                       line=dict(color='#d54062', width=5),
-                                       visible=figure_site_type_month[4])
-
-        trace_news_line = go.Scatter(x=filtered_site_df_month.index,
-                                     y=filtered_site_df_month['Новости'],
-                                     name='Новости',
-                                     mode='lines+markers',
-                                     marker=dict(size=15),
-                                     line=dict(color='#ffa36c', width=5),
-                                     visible=figure_site_type_month[5])
-
-        trace_about_line = go.Scatter(x=filtered_site_df_month.index,
-                                      y=filtered_site_df_month['О межрегиональном бухгалтерском УФК'],
-                                      name='О межрегиональном бухгалтерском УФК',
-                                      mode='lines+markers',
-                                      marker=dict(size=15),
-                                      line=dict(color='#ebdc87', width=5),
-                                      visible=figure_site_type_month[6])
-
-        trace_other_line = go.Scatter(x=filtered_site_df_month.index,
-                                      y=filtered_site_df_month['Иная деятельность'],
-                                      name='Иная деятельность',
-                                      mode='lines+markers',
-                                      marker=dict(size=15),
-                                      line=dict(color='#799351', width=5),
-                                      visible=figure_site_type_month[7])
-
-        data_site = [trace_budget_bar, trace_news_bar, trace_about_bar, trace_other_bar, trace_budget_line,
-                     trace_news_line, trace_about_line, trace_other_line]
-
-        layout_site = dict(
-            title='Статистика посещаний разделов сайта',
-            autosize=True,
-        )
-
-        return [{
-            "data": data_site,
-            "layout": layout_site},
-            {"data": data_site,
-             "layout": layout_site}]
+    return fig
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.109', port=8050)
+    app.run_server(debug=True, host='192.168.2.43', port=8000)
