@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 from datetime import date, timedelta
-from LoadData import LoadEtspData, LoadSueData, EtspCountMeanTime, SueCountMeanTime, LoadInfSystemsData
+from LoadData import LoadEtspData, LoadSueData, CountMeanTime, LoadInfSystemsData, LoadOspData
 
 current_month = date.today().month
 current_day = date.today().day
@@ -85,6 +85,7 @@ fig_site_top3.update_layout(title_text="Глубина просмотра раз
 
 etsp_df = LoadEtspData()
 sue_df = LoadSueData()
+osp_df = LoadOspData()
 inf_systems_data = LoadInfSystemsData()
 
 
@@ -152,8 +153,8 @@ app.layout = html.Div([
                             min_date_allowed=date(2019, 9, 1),
                             max_date_allowed=date(2020, 12, 31),
                             # initial_visible_month=date(current_year, current_month, current_day),
-                            start_date=date(2020, 10, 1),
-                            end_date=date(2020, 10, 10),
+                            start_date=date(2020, 12, 10),
+                            end_date=date(2020, 12, 18),
                             # start_date=date(current_year, current_month, current_day),
                             # end_date=date(end_year, end_month, end_day),
                             clearable=False,
@@ -170,17 +171,19 @@ app.layout = html.Div([
                             html.Tr([
                                 html.Td([html.Label('Количество обращений'), ]),
                                 html.Td(html.Label('Количество пользователей')),
-                                html.Td('Среднее время решения', colSpan=2)
+                                html.Td('Среднее время решения', colSpan=3)
                             ]),
                             html.Tr([
                                 html.Td(id='tasks', rowSpan=2),
                                 html.Td(id='users', rowSpan=2),
-                                html.Td('ETSP'),
-                                html.Td('SUE')
+                                html.Td('ЕЦП'),
+                                html.Td('СУЭ'),
+                                html.Td('ОСП')
                             ]),
                             html.Tr([
                                 html.Td(id='etsp-time'),
-                                html.Td(id='sue-time')
+                                html.Td(id='sue-time'),
+                                html.Td(id='osp-time')
                             ]),
                             html.Tr([
 
@@ -269,48 +272,52 @@ app.layout = html.Div([
     Output('users', 'children'),
     Output('etsp-time', 'children'),
     Output('sue-time', 'children'),
+    Output('osp-time', 'children'),
     [Input('date_user', 'start_date'),
      Input('date_user', 'end_date'),
      ])
 def update_figure_user(start_date_user, end_date_user):
     # etsp_df = LoadEtspData()
     # sue_df = LoadSueData()
+    # print(start_date_user, type(start_date_user))
+    # print(end_date_user)
 
     etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
     sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
+    osp_filtered_df = osp_df[(osp_df['start_date'] >= start_date_user) & (osp_df['start_date'] <= end_date_user)]
 
     etsp_count_tasks = etsp_filtered_df['count_task'].sum()
     sue_count_tasks = sue_filtered_df['count_task'].sum()
+    osp_count_tasks = osp_filtered_df['count_task'].sum()
 
-    total_users = len(etsp_filtered_df['Затронутый пользователь'].unique()) + len(
-        sue_filtered_df['Получатель услуг'].unique())
+    total_users = len(etsp_filtered_df['Имя затронутого пользователя'].unique()) + len(
+        sue_filtered_df['Получатель услуг'].unique()) + len(osp_filtered_df['Пользователь'].unique())
 
-    etsp_avg_time = EtspCountMeanTime(etsp_filtered_df)
-    sue_avg_time = SueCountMeanTime(sue_filtered_df)
+    etsp_avg_time = CountMeanTime(etsp_filtered_df)
+    sue_avg_time = CountMeanTime(sue_filtered_df)
+    osp_avg_time = CountMeanTime(osp_filtered_df)
 
-    trace_offline_bar = go.Bar(y=[etsp_count_tasks, sue_count_tasks],
-                               x=['ЕЦП', 'СУЭ'],
-                               base=0,
-                               marker=dict(color='crimson'))
+    fig_support = go.Figure(go.Bar(y=[etsp_count_tasks, sue_count_tasks, osp_count_tasks],
+                                   x=['ЕЦП', 'СУЭ', 'ОСП'],
+                                   base=0,
+                                   marker=dict(color=['#a92b2b', '#37a17c', '#a2d5f2']),
+                                   text=[etsp_count_tasks, sue_count_tasks, osp_count_tasks],
+                                   textposition='auto'))
+    fig_support.update_layout(autosize=True,
+                              # height=700,
+                              legend=dict(
+                                  orientation="h",
+                                  yanchor="bottom",
+                                  y=0.2,
+                                  xanchor="right",
+                                  x=0.5),
+                              )
+    fig_support.update_xaxes(ticks="inside",
+                             tickson="boundaries")
 
-    data_user = [trace_offline_bar]
+    total_tasks = etsp_count_tasks + sue_count_tasks + osp_count_tasks
 
-    layout_user = dict(
-        autosize=True,
-        # height=700,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1,
-            xanchor="right",
-            x=1),
-    )
-
-    total_tasks = etsp_count_tasks + sue_count_tasks
-
-    return {
-               "data": data_user,
-               "layout": layout_user}, total_tasks, total_users, etsp_avg_time, sue_avg_time
+    return fig_support, total_tasks, total_users, etsp_avg_time, sue_avg_time, osp_avg_time
 
 
 @app.callback(
@@ -321,37 +328,46 @@ def update_figure_user(start_date_user, end_date_user):
 def update_figure_support(start_date_user, end_date_user):
     etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
     sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
+    osp_filtered_df = osp_df[(osp_df['start_date'] >= start_date_user) & (osp_df['start_date'] <= end_date_user)]
 
     etsp_count_tasks = etsp_filtered_df['count_task'].sum()
     sue_count_tasks = sue_filtered_df['count_task'].sum()
+    osp_count_tasks = osp_filtered_df['count_task'].sum()
 
     etsp_labels = ['ETSP', 'Total']
-    etsp_values = [etsp_count_tasks, sue_count_tasks]
+    etsp_values = [etsp_count_tasks, sue_count_tasks + osp_count_tasks]
     sue_labels = ['SUE', 'Total']
-    sue_values = [sue_count_tasks, etsp_count_tasks]
+    sue_values = [sue_count_tasks, etsp_count_tasks + osp_count_tasks]
+    osp_labels = ['SUE', 'Total']
+    osp_values = [osp_count_tasks, etsp_count_tasks + sue_count_tasks]
 
-    if (etsp_count_tasks + sue_count_tasks) > 0:
-        etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
-        sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
+    if (etsp_count_tasks + sue_count_tasks + osp_count_tasks) > 0:
+        etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
+        sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
+        osp_persent = f'{(osp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
     else:
         etsp_persent = 0
         sue_persent = 0
+        osp_persent = 0
 
     etsp_colors = ['#a92b2b', '#222780']
     sue_colors = ['#37a17c', '#222780']
+    osp_colors = ['#a2d5f2', '#222780']
 
-    fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
+    fig = make_subplots(rows=1, cols=3, specs=[[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}]])
 
-    fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ETSP", marker_colors=etsp_colors), 1, 1)
-    fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="SUE", marker_colors=sue_colors), 1, 2)
+    fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ЕЦП", marker_colors=etsp_colors), 1, 1)
+    fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="СУЭ", marker_colors=sue_colors), 1, 2)
+    fig.add_trace(go.Pie(labels=osp_labels, values=osp_values, name="ОСП", marker_colors=osp_colors), 1, 3)
 
     # Use `hole` to create a donut-like pie chart
     fig.update_traces(hole=.4, hoverinfo="label+percent+name")
 
     fig.update_layout(
         # Add annotations in the center of the donut pies.
-        annotations=[dict(text=etsp_persent, x=0.18, y=0.5, align='center', font_size=15, showarrow=False),
-                     dict(text=sue_persent, x=0.83, y=0.5, align='center', font_size=15, showarrow=False)],
+        annotations=[dict(text=etsp_persent, x=0.11, y=0.5, align='center', font_size=15, showarrow=False),
+                     dict(text=sue_persent, x=0.50, y=0.5, align='center', font_size=15, showarrow=False),
+                     dict(text=osp_persent, x=0.89, y=0.5, align='center', font_size=15, showarrow=False)],
         showlegend=False)
 
     return fig
