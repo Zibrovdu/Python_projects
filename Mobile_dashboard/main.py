@@ -3,9 +3,10 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 from datetime import date, timedelta
-
+from LoadData import LoadEtspData, LoadSueData, EtspCountMeanTime, SueCountMeanTime, LoadInfSystemsData
 
 current_month = date.today().month
 current_day = date.today().day
@@ -19,6 +20,12 @@ end_year = (date.today() + timedelta(days=7)).year
 def load_data():
     df_load = pd.read_excel('data.xlsx', sheet_name='Данные')
     df_load.set_index(df_load.columns[0], inplace=True)
+    # df_load['month'] = pd.to_datetime(df_load.index)
+    # df_load['month'] = df_load['month'].dt.month
+    # df_load['year'] = pd.to_datetime(df_load.index)
+    # df_load['year'] = df_load['year'].dt.year
+    # df_load['day'] = pd.to_datetime(df_load.index)
+    # df_load['day'] = df_load['day'].dt.day
     return df_load
 
 
@@ -76,6 +83,16 @@ fig_site_top3 = go.Figure(data=[go.Pie(labels=el_b_df['site_page'], values=el_b_
 fig_site_top3.update_layout(title_text="Глубина просмотра раздела Электронный бюджет", autosize=True, piecolorway=[
     '#26205b', '#3257af', '#c8abd5', '#f9c5d8', '#b83e74', '#8d0837', '#9456ef'])
 
+etsp_df = LoadEtspData()
+sue_df = LoadSueData()
+inf_systems_data = LoadInfSystemsData()
+
+
+# df_site = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
+# df_site.drop(['Неделя 1', 'Unnamed: 6'], axis=1, inplace=True)
+# df_site.rename(columns={'Unnamed: 0': 'Date'}, inplace=True)
+# df_site.set_index(df_site.columns[0], inplace=True)
+
 
 def eval_expression(input_string):
     """Эта функция полностью запрещает использование имен в eval(). (В целях безопасности)"""
@@ -103,18 +120,29 @@ fig_site_top2 = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
 fig_site_top2.update_layout(
     title_text="Количество посетителей")
 
+fig_inf_systems = go.Figure()
+for i in range(len(inf_systems_data)):
+    fig_inf_systems.add_trace(go.Bar(y=inf_systems_data.columns,
+                                     x=inf_systems_data.iloc[i],
+                                     name=inf_systems_data.index[i],
+                                     orientation='h'))
+fig_inf_systems.update_layout(barmode='stack')
+fig_inf_systems.update_yaxes(tickmode="linear")
+
+# df = load_data()
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.layout = html.Div([
     html.Div([
+        # html.H1("Межрегиональное бухгалтерское УФК"),
         html.H2('Отчет о работе Отдела сопровождения пользователей'),
         html.Img(src="assets/logo.png")
     ], className="banner"),
     html.Div([
         html.Div([
             dcc.Tabs(id='choice_period', value='weeks', children=[
-                dcc.Tab(label='Техническая поддержка', value='weeks', children=[
+                dcc.Tab(label='Работа с пользователями', value='weeks', children=[
                     html.Br(),
                     html.Div([
                         html.Label("Выберите период: ", className='two columns'),
@@ -124,51 +152,58 @@ app.layout = html.Div([
                             min_date_allowed=date(2019, 9, 1),
                             max_date_allowed=date(2020, 12, 31),
                             # initial_visible_month=date(current_year, current_month, current_day),
-                            start_date=date(current_year, current_month, current_day),
-                            end_date=date(end_year, end_month, end_day),
+                            start_date=date(2020, 10, 1),
+                            end_date=date(2020, 10, 10),
+                            # start_date=date(current_year, current_month, current_day),
+                            # end_date=date(end_year, end_month, end_day),
                             clearable=False,
-                            with_portal=True,
+                            # with_portal=True,
                             className='four columns'
                         ),
                         html.Div(id='out_date_range_user'),
+                    ]),  # range_period
+                    # html.Br(),
+                    # html.Hr(),
+                    # html.H3('Сопровождение пользователей'),
+                    html.Div([
+                        html.Table([
+                            html.Tr([
+                                html.Td([html.Label('Количество обращений'), ]),
+                                html.Td(html.Label('Количество пользователей')),
+                                html.Td('Среднее время решения', colSpan=2)
+                            ]),
+                            html.Tr([
+                                html.Td(id='tasks', rowSpan=2),
+                                html.Td(id='users', rowSpan=2),
+                                html.Td('ETSP'),
+                                html.Td('SUE')
+                            ]),
+                            html.Tr([
+                                html.Td(id='etsp-time'),
+                                html.Td(id='sue-time')
+                            ]),
+                            html.Tr([
+
+                            ]),
+                            html.Tr([
+
+                            ]),
+                        ], className='table1'),
                     ]),
-                    html.Br(),
-                    html.Hr(),
-                    html.H3('Сопровождение пользователей'),
                     html.Div([
-                        html.Hr(),
-                        html.Br(),
-                        html.Br(),
-                        dcc.Dropdown(id='user_dropdown',
-                                     options=[
-                                         dict(label='Линейный график', value='[True, True, False, False]'),
-                                         dict(label='Столбчатая диаграмма', value='[False, False, True, True]')],
-                                     value='[True, True, False, False]',
-                                     clearable=False,
-                                     searchable=False,
-                                     style=dict(width='250px', margin='30px, 0px')),
                         dcc.Graph(id='users_figure'),
-                    ]),  # html div user graph
-                    html.Hr(),
-                    html.H3('Техническая поддержка'),
-                    html.Hr(),
+                    ], className='four columns'),  # html div user graph
                     html.Div([
-                        html.Br(),
-                        html.Br(),
-                        dcc.Dropdown(id='tech_dropdown',
-                                     options=[
-                                         dict(label='Линейный график', value='[True, True, True, False, False, '
-                                                                             'False]'),
-                                         dict(label='Столбчатая диаграмма', value='[False, False, False, True, '
-                                                                                  'True, True]')],
-                                     value='[True, True, True, False, False, False]',
-                                     clearable=False,
-                                     searchable=False,
-                                     style=dict(width='250px', margin='30px, 0px')),
-                        dcc.Graph(id='tech_figure'),
-                    ]),  # html div tech graph
+                        dcc.Graph(id='support_figure'),
+                    ], className='seven columns'),  # html div support graph
                 ], className='h3'),  # tab user
                 dcc.Tab(label='Работа информационных систем', value='months', children=[
+                    html.Div([
+                        dcc.Graph(id='inf_systems',
+                                  figure=fig_inf_systems
+                                  )
+
+                    ], style=dict(border='1px solid #333'))
 
                 ]),  # tab tech
                 dcc.Tab(label='Статистика сайта', value='s', children=[
@@ -193,11 +228,23 @@ app.layout = html.Div([
                     html.Hr(),
                     html.H3('Рейтинг посещаемости разделов сайта за год'),
                     html.Div([
+                        # html.Hr(),
+                        # html.Br(),
+                        # dcc.Dropdown(id='site_dropdown1',
+                        #              className = 'dropdown',),
                         dcc.Graph(id='site_top_fig',
                                   figure=fig_site_top
                                   ),
                     ], className='six columns'),
+                    # html.Div([
+                    #     html.Br(),
+                    #     html.Br(),
+                    # ]),
                     html.Div([
+                        # html.Hr(),
+                        # html.Br(),
+                        # dcc.Dropdown(id='site_dropdown1',
+                        #              className = 'dropdown',),
                         dcc.Graph(id='site_top_fig2',
                                   figure=fig_site_top2
                                   ),
@@ -209,7 +256,7 @@ app.layout = html.Div([
                                   ),
                     ], className='six columns'),
                 ]),  # tab site
-            ]),  # main tabs end
+            ], className='tab'),  # main tabs end
             html.Div(id='tabs_content')
         ])  # html.div 2
     ])  # html.div 1
@@ -218,48 +265,39 @@ app.layout = html.Div([
 
 @app.callback(
     Output('users_figure', 'figure'),
-    [Input('user_dropdown', 'value'),
-     Input('date_user', 'start_date'),
+    Output('tasks', 'children'),
+    Output('users', 'children'),
+    Output('etsp-time', 'children'),
+    Output('sue-time', 'children'),
+    [Input('date_user', 'start_date'),
      Input('date_user', 'end_date'),
      ])
-def update_figure_user(figure_user_type, start_date_user, end_date_user):
+def update_figure_user(start_date_user, end_date_user):
+    # etsp_df = LoadEtspData()
+    # sue_df = LoadSueData()
 
-    df_user = load_data()
-    filtered_df = df_user[(df_user.index >= start_date_user) & (df_user.index <= end_date_user)]
+    etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
+    sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
 
-    figure_user_type = eval_expression(figure_user_type)
+    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+    sue_count_tasks = sue_filtered_df['count_task'].sum()
 
-    trace_office = go.Scatter(x=filtered_df.index,
-                              y=filtered_df['Сопровождение пользователя в офисе'],
-                              name='работа в офисе',
-                              mode='lines+markers',
-                              marker=dict(size=15),
-                              line=dict(color='crimson', width=5),
-                              visible=figure_user_type[0])
-    trace_online = go.Scatter(x=filtered_df.index,
-                              y=filtered_df['Сопровождение пользователя на удаленной работе'],
-                              name='удаленная работа',
-                              mode='lines+markers',
-                              marker=dict(size=15),
-                              line=dict(color='lightslategrey', width=5),
-                              visible=figure_user_type[1])
-    trace_offline_bar = go.Bar(x=filtered_df.index,
-                               y=filtered_df['Сопровождение пользователя в офисе'],
+    total_users = len(etsp_filtered_df['Затронутый пользователь'].unique()) + len(
+        sue_filtered_df['Получатель услуг'].unique())
+
+    etsp_avg_time = EtspCountMeanTime(etsp_filtered_df)
+    sue_avg_time = SueCountMeanTime(sue_filtered_df)
+
+    trace_offline_bar = go.Bar(y=[etsp_count_tasks, sue_count_tasks],
+                               x=['ЕЦП', 'СУЭ'],
                                base=0,
-                               marker=dict(color='crimson'),
-                               name='работа в офисе',
-                               visible=figure_user_type[2])
-    trace_online_bar = go.Bar(x=filtered_df.index,
-                              y=filtered_df['Сопровождение пользователя на удаленной работе'],
-                              base=0,
-                              marker=dict(color='lightslategrey'),
-                              name='удаленная работа',
-                              visible=figure_user_type[3])
+                               marker=dict(color='crimson'))
 
-    data_user = [trace_office, trace_online, trace_offline_bar, trace_online_bar]
+    data_user = [trace_offline_bar]
 
     layout_user = dict(
         autosize=True,
+        # height=700,
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -268,85 +306,56 @@ def update_figure_user(figure_user_type, start_date_user, end_date_user):
             x=1),
     )
 
+    total_tasks = etsp_count_tasks + sue_count_tasks
+
     return {
-        "data": data_user,
-        "layout": layout_user}
+               "data": data_user,
+               "layout": layout_user}, total_tasks, total_users, etsp_avg_time, sue_avg_time
 
 
 @app.callback(
-    Output('tech_figure', 'figure'),
-    [Input('tech_dropdown', 'value'),
-     Input('date_user', 'start_date'),
+    Output('support_figure', 'figure'),
+    [Input('date_user', 'start_date'),
      Input('date_user', 'end_date'),
      ])
-def update_figure_tech(figure_tech_type, start_date_tech, end_date_tech):
+def update_figure_support(start_date_user, end_date_user):
+    etsp_filtered_df = etsp_df[(etsp_df['start_date'] >= start_date_user) & (etsp_df['start_date'] <= end_date_user)]
+    sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
 
-    df_tech = load_data()
-    filtered_df_tech = df_tech[(df_tech.index >= start_date_tech) & (df_tech.index <= end_date_tech)]
+    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+    sue_count_tasks = sue_filtered_df['count_task'].sum()
 
-    figure_tech_type = eval_expression(figure_tech_type)
+    etsp_labels = ['ETSP', 'Total']
+    etsp_values = [etsp_count_tasks, sue_count_tasks]
+    sue_labels = ['SUE', 'Total']
+    sue_values = [sue_count_tasks, etsp_count_tasks]
 
-    trace_rtk = go.Scatter(x=filtered_df_tech.index,
-                           y=filtered_df_tech['РТК'],
-                           name='РТК',
-                           mode='lines+markers',
-                           marker=dict(size=15),
-                           line=dict(color='#67b18d', width=5),
-                           visible=figure_tech_type[0])
+    if (etsp_count_tasks + sue_count_tasks) > 0:
+        etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
+        sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks)):.2%}'
+    else:
+        etsp_persent = 0
+        sue_persent = 0
 
-    trace_sue = go.Scatter(x=filtered_df_tech.index,
-                           y=filtered_df_tech['СУЭ'],
-                           name='СУЭ',
-                           mode='lines+markers',
-                           marker=dict(size=15),
-                           line=dict(color='#5794a1', width=5),
-                           visible=figure_tech_type[1])
+    etsp_colors = ['#a92b2b', '#222780']
+    sue_colors = ['#37a17c', '#222780']
 
-    trace_sue_osp = go.Scatter(x=filtered_df_tech.index,
-                               y=filtered_df_tech['СУЭ ОСП'],
-                               name='СУЭ ОСП',
-                               mode='lines+markers',
-                               marker=dict(size=15),
-                               line=dict(color='#9b5050', width=5),
-                               visible=figure_tech_type[2])
+    fig = make_subplots(rows=1, cols=2, specs=[[{'type': 'domain'}, {'type': 'domain'}]])
 
-    trace_rtk_bar = go.Bar(x=filtered_df_tech.index,
-                           y=filtered_df_tech['РТК'],
-                           base=0,
-                           marker=dict(color='#67b18d'),
-                           name='РТК',
-                           visible=figure_tech_type[3])
+    fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ETSP", marker_colors=etsp_colors), 1, 1)
+    fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="SUE", marker_colors=sue_colors), 1, 2)
 
-    trace_sue_bar = go.Bar(x=filtered_df_tech.index,
-                           y=filtered_df_tech['СУЭ'],
-                           base=0,
-                           marker=dict(color='#5794a1'),
-                           name='СУЭ',
-                           visible=figure_tech_type[4])
+    # Use `hole` to create a donut-like pie chart
+    fig.update_traces(hole=.4, hoverinfo="label+percent+name")
 
-    trace_sue_osp_bar = go.Bar(x=filtered_df_tech.index,
-                               y=filtered_df_tech['СУЭ ОСП'],
-                               base=0,
-                               marker=dict(color='#9b5050'),
-                               name='СУЭ ОСП',
-                               visible=figure_tech_type[5])
+    fig.update_layout(
+        # Add annotations in the center of the donut pies.
+        annotations=[dict(text=etsp_persent, x=0.18, y=0.5, align='center', font_size=15, showarrow=False),
+                     dict(text=sue_persent, x=0.83, y=0.5, align='center', font_size=15, showarrow=False)],
+        showlegend=False)
 
-    data_tech = [trace_rtk, trace_sue, trace_sue_osp, trace_rtk_bar, trace_sue_bar, trace_sue_osp_bar]
-
-    layout_tech = dict(
-        autosize=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1,
-            xanchor="right",
-            x=1),
-    )
-
-    return {
-        "data": data_tech,
-        "layout": layout_tech}
+    return fig
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.43', port=8050)
+    app.run_server(debug=True, host='192.168.2.43', port=8000)

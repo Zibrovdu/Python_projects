@@ -1,5 +1,4 @@
 \.idea
 \venv
-site.xlsx
-data.xlsx
-data.xlsx.old
+*.xlsx
+*.xls
