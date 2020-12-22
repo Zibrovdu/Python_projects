@@ -1,6 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_daq as daq
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -126,8 +127,10 @@ for i in range(len(inf_systems_data)):
     fig_inf_systems.add_trace(go.Bar(y=inf_systems_data.columns,
                                      x=inf_systems_data.iloc[i],
                                      name=inf_systems_data.index[i],
-                                     orientation='h'))
-fig_inf_systems.update_layout(barmode='stack')
+                                     orientation='h',
+                                     text=inf_systems_data.iloc[i],
+                                     textposition='inside'))
+fig_inf_systems.update_layout(barmode='stack', height=700, legend_font_size=10, legend_itemwidth=40)
 fig_inf_systems.update_yaxes(tickmode="linear")
 
 # df = load_data()
@@ -201,13 +204,33 @@ app.layout = html.Div([
                     ], className='seven columns'),  # html div support graph
                 ], className='h3'),  # tab user
                 dcc.Tab(label='Работа информационных систем', value='months', children=[
+                    html.Br(),
+                    html.Div([
+                        html.Table([
+                            html.Tr([
+                                html.Td([html.Label('Пользователей ГИИС «Электронный бюджет» в Управлении')]),
+                                html.Td([html.Label('Сформировано заявок:')], colSpan=2)
+                            ]),
+                            html.Tr([
+                                html.Td([daq.LEDDisplay(id='total_tasks', value=254, color='#222780',
+                                                        backgroundColor='#e8edff',)], rowSpan=2),
+                                html.Td([html.Label('на подключение к ГИИС «Электронный бюджет»')]),
+                                html.Td([html.Label('на лишение полномочий')])
+                            ]),
+                            html.Tr([
+                                html.Td([daq.LEDDisplay(id='allow_perm', value=0000, color='#28df99',
+                                                        backgroundColor='#e8edff', size=20)]),
+                                html.Td([daq.LEDDisplay(id='denny_perm', value=0000, color='#ec0101',
+                                                        backgroundColor='#e8edff', size=20)])
+                            ])
+                        ], className='table_budget')
+                    ]),
                     html.Div([
                         dcc.Graph(id='inf_systems',
                                   figure=fig_inf_systems
                                   )
 
-                    ], style=dict(border='1px solid #333'))
-
+                    ])
                 ]),  # tab tech
                 dcc.Tab(label='Статистика сайта', value='s', children=[
                     html.Br(),
