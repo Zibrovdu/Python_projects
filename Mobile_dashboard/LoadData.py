@@ -268,12 +268,17 @@ def CountMeanTime(filtered_df):
 
 
 def LoadInfSystemsData():
-    df = pd.read_excel('data.xlsx', sheet_name='Работа в ИС', usecols='A,D:O')
-    df.dropna(axis=0, inplace=True)
-    df['Unnamed: 0'] = df['Unnamed: 0'].astype(int)
-    df = df.T
-    new_header = df.iloc[0]  # grab the first row for the header
-    df = df[1:]  # take the data less the header row
-    df.columns = new_header  # set the header row as the df header
+    # df = pd.read_excel('data.xlsx', sheet_name='Работа в ИС', usecols='A,D:O')
+    # df.dropna(axis=0, inplace=True)
+    # df['Unnamed: 0'] = df['Unnamed: 0'].astype(int)
+    # df = df.T
+    # new_header = df.iloc[0]  # grab the first row for the header
+    # df = df[1:]  # take the data less the header row
+    # df.columns = new_header  # set the header row as the df header
+
+    df = pd.read_excel('assets/dostup.xlsx', sheet_name='Лист5', index_col=0)
+    df.drop('Номер отдела', axis=1, inplace=True)
 
     return df
+
+
