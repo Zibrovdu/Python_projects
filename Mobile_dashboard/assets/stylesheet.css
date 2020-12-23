@@ -2,12 +2,12 @@
     height: 75px;
     width/max-width: 1800px;
     margin: 0 auto;
-    background-color: rgb(66, 196, 247);
+    background-color: #6678b1;
     border-radius: 2px;
 }
 
 .banner h2{
-    color: white;
+    color: rgb(194, 194, 194);
     padding-top: 10px;
     margin-left: 2%;
     display: inline-block;
@@ -64,6 +64,28 @@ td {
 }
 tr:hover td {color: #6699ff;}
 
-tab {
-background: grey;
+.table_budget {
+  text-align: center;
+  border: 1px solid black;
+  color: white;
+}
+.td {
+  color: white;
+  transition: .3s linear;
+}
+
+.line_block {
+        width: 47%;
+        background: #e8edff;
+        float:left;
+        margin: 0 15px 15px 0;
+        text-align: center;
+        padding: 10px;
+        margin-left: 1%;
+        }
+
+.picker {
+    font-size: 1.4em;
+    font-family: "Arial";
+    font-color: rgb(34,39,128);
 }
