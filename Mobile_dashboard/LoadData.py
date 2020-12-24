@@ -28,22 +28,23 @@ def LoadEtspData():
 
 
 def LoadSueData():
-    df = pd.read_excel('assets/exportSD_current.xlsx', usecols='H,J,O,S,U,AH')
-    df['Фактическое время выполнения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
-    df['Описание'].fillna(' ', inplace=True)
-    df['Фактическое время выполнения'] = pd.to_datetime(df['Фактическое время выполнения'])
-    df['timedelta'] = df['Фактическое время выполнения'] - df['Дата/время регистрации']
+    df = pd.read_excel('assets/exportSD_current.xlsx', usecols='H,I,J,O,S,U,AH')
+    df.columns = ['registration_date', 'status', 'event_number', 'title', 'plan_time', 'fact_time', 'user']
+    df['fact_time'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
+    df['title'].fillna(' ', inplace=True)
+    df['fact_time'] = pd.to_datetime(df['fact_time'])
+    df['timedelta'] = df['fact_time'] - df['registration_date']
 
     empl_df = pd.read_excel('assets/employes.xlsx', usecols='B,C')
-    df = df.merge(empl_df, how='left', left_on=['Получатель услуг'], right_on=['фио'])
+    df = df.merge(empl_df, how='left', left_on=['user'], right_on=['фио'])
     del empl_df
     df.drop('фио', axis=1, inplace=True)
 
-    df['month_open'] = df['Дата/время регистрации'].dt.month
-    df['month_solved'] = df['Фактическое время выполнения'].dt.month
+    df['month_open'] = df['registration_date'].dt.month
+    df['month_solved'] = df['fact_time'].dt.month
     df['count_task'] = 1
-    df['start_date'] = df['Дата/время регистрации'].dt.date.apply(lambda x: str(x))
-    df['finish_date'] = df['Фактическое время выполнения'].dt.date.apply(lambda x: str(x))
+    df['start_date'] = df['registration_date'].dt.date.apply(lambda x: str(x))
+    df['finish_date'] = df['fact_time'].dt.date.apply(lambda x: str(x))
 
     return df
 
