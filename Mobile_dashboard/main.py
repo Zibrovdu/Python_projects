@@ -89,15 +89,21 @@ fig_site_top3.update_layout(title_text="Глубина просмотра раз
                             plot_bgcolor='#ebecf1')
 
 etsp_df = LoadEtspData()
-top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum() \
-                             .sort_values(ascending=False).head(). \
-                             reset_index()).rename(columns={'count_task': 'Количество запросов'})
+top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum()
+                             .sort_values(ascending=False).head()
+                             .reset_index()).rename(columns={'count_task': 'Количество запросов'})
 sue_df = LoadSueData()
-top_user_sue = pd.DataFrame(sue_df.groupby('Получатель услуг')['count_task'].sum() \
-                            .sort_values(ascending=False).head(). \
-                            reset_index()).rename(columns={'count_task': 'Количество запросов'})
+top_user_sue = pd.DataFrame(sue_df.groupby('user')['count_task'].sum()
+                            .sort_values(ascending=False).head()
+                            .reset_index()).rename(
+    columns={'user': 'Пользователь', 'count_task': 'Количество запросов'})
 osp_df = LoadOspData()
 inf_systems_data = LoadInfSystemsData()
+
+sue_avaria_df = sue_df[(sue_df.status == 'Проблема') | (sue_df.status == 'Массовый инцидент')]
+
+
+# print(sue_avaria_df)
 
 
 # df_site = pd.read_excel('data.xlsx', sheet_name='Данные по сайту', skiprows=5)
@@ -185,7 +191,40 @@ app.layout = html.Div([
                     # html.Hr(),
                     # html.H3('Сопровождение пользователей'),
                     html.Div([
-                        html.Table([
+                        html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
+                        html.Div([html.Label('Аварийные инциденты'),
+                                  dash_table.DataTable(id='sue_avaria',
+                                                       columns=[{"name": i, "id": i} for i in sue_avaria_df.columns if
+                                                                i == 'status' or i == 'event_number' or
+                                                                i == 'start_date' or i == 'title'],
+                                                       data=sue_avaria_df.to_dict('records'),
+                                                       sort_action="native",
+                                                       style_table={'height': '100px', 'overflowY': 'auto'},
+                                                       fixed_rows={'headers': True},
+                                                       style_as_list_view=True,
+                                                       cell_selectable=False,
+                                                       style_data=dict(width='10%'),
+                                                       css=[{
+                                                           'selector': '.dash-spreadsheet td div',
+                                                           'rule': '''
+                                                                line-height: 10px;
+                                                                max-height: 20px; min-height: 20px; height: 20px;
+                                                                display: block;
+                                                                overflow-y: hidden;
+                                                           '''
+                                                       }],
+                                                       tooltip_data=[{
+                                                           column: {'value': str(value), 'type': 'markdown'}
+                                                           for column, value in row.items()
+                                                       } for row in sue_avaria_df.to_dict('records')
+                                                       ],
+                                                       tooltip_duration=None,
+                                                       style_cell=dict(textAlign='center',
+                                                                       overflow='hidden',
+                                                                       textOverflow='ellipsis',
+                                                                       maxWidth=0))], className='line_block',
+                                 style=dict(width='50%', border='1px solid #222780')),  # html div user graph
+                        html.Div([html.Table([
                             html.Tr([
                                 html.Td([html.Label('Количество обращений'), ]),
                                 html.Td(html.Label('Количество пользователей')),
@@ -209,16 +248,17 @@ app.layout = html.Div([
                             html.Tr([
 
                             ]),
-                        ], className='table_support'),
+                        ])], className='line_block',
+                            style=dict(width='44%', border='1px solid #222780')),  # html div support graph
+                        html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
-                    html.Br(),
                     html.Hr(),
                     html.Div([
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                         html.Div([dcc.Graph(id='users_figure')], className='line_block',
-                                 style=dict(width='30%', border='1px solid #222780')),   # html div user graph
+                                 style=dict(width='30%', border='1px solid #222780')),  # html div user graph
                         html.Div([dcc.Graph(id='support_figure')], className='line_block',
-                                 style=dict(width='64%', border='1px solid #222780')), # html div support graph
+                                 style=dict(width='64%', border='1px solid #222780')),  # html div support graph
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
                     html.Br(),
@@ -369,7 +409,7 @@ def update_figure_user(start_date_user, end_date_user):
     osp_count_tasks = osp_filtered_df['count_task'].sum()
 
     total_users = len(etsp_filtered_df['Имя затронутого пользователя'].unique()) + len(
-        sue_filtered_df['Получатель услуг'].unique()) + len(osp_filtered_df['Пользователь'].unique())
+        sue_filtered_df['user'].unique()) + len(osp_filtered_df['Пользователь'].unique())
 
     etsp_avg_time = CountMeanTime(etsp_filtered_df)
     sue_avg_time = CountMeanTime(sue_filtered_df)
@@ -454,5 +494,22 @@ def update_figure_support(start_date_user, end_date_user):
     return fig
 
 
+@app.callback(
+    Output('sue_avaria', 'data'),
+    [Input('date_user', 'start_date'),
+     Input('date_user', 'end_date'),
+     ])
+def update_table_avaria(start_date_user, end_date_user):
+    sue_avaria_filtered_df = sue_avaria_df[(sue_avaria_df['start_date'] >= start_date_user) &
+                                           (sue_avaria_df['start_date'] <= end_date_user)]
+
+    if len(sue_avaria_filtered_df) > 0:
+        return sue_avaria_filtered_df.to_dict('records')
+    else:
+        return [dict(registration_date='-', status='Аварийных инциндентов нет', event_number='-', title='-',
+                     plan_time='-', fact_time='-', user='-', timedelta='-', Отдел='-', month_open='-',
+                     month_solved='-', count_task='-', start_date='-', finish_date='-')]
+
+
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.43', port=8000)
+    app.run_server(debug=True, host='192.168.2.43', port=8050)
