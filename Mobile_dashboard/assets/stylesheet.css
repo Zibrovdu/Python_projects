@@ -75,7 +75,7 @@ tr:hover td {color: #6699ff;}
 }
 
 .line_block {
-        width: 47%;
+        width: 44%;
         background: #e8edff;
         float:left;
         margin: 0 15px 15px 0;
@@ -88,4 +88,12 @@ tr:hover td {color: #6699ff;}
     font-size: 1.4em;
     font-family: "Arial";
     font-color: rgb(34,39,128);
+}
+
+
+media screen and (max-width: 650px) {
+    .line_block {
+    width:  auto;}
+
+
 }

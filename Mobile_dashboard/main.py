@@ -91,7 +91,8 @@ fig_site_top3.update_layout(title_text="Глубина просмотра раз
 etsp_df = LoadEtspData()
 top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum()
                              .sort_values(ascending=False).head()
-                             .reset_index()).rename(columns={'count_task': 'Количество запросов'})
+                             .reset_index()).rename(columns={'Имя затронутого пользователя': 'Пользователь',
+                                                             'count_task': 'Количество запросов'})
 sue_df = LoadSueData()
 top_user_sue = pd.DataFrame(sue_df.groupby('user')['count_task'].sum()
                             .sort_values(ascending=False).head()
@@ -101,7 +102,9 @@ osp_df = LoadOspData()
 inf_systems_data = LoadInfSystemsData()
 
 sue_avaria_df = sue_df[(sue_df.status == 'Проблема') | (sue_df.status == 'Массовый инцидент')]
-
+sue_avaria_df.columns = ['Дата', 'Тип', 'Номер', 'Описание', 'Плановое время', 'Фактическое время',
+                         'Пользователь', 'timedelta', 'Отдел', 'month_open', 'month_solved', 'count_task',
+                         'Дата обращения', 'finish_date']
 
 # print(sue_avaria_df)
 
@@ -195,8 +198,8 @@ app.layout = html.Div([
                         html.Div([html.Label('Аварийные инциденты'),
                                   dash_table.DataTable(id='sue_avaria',
                                                        columns=[{"name": i, "id": i} for i in sue_avaria_df.columns if
-                                                                i == 'status' or i == 'event_number' or
-                                                                i == 'start_date' or i == 'title'],
+                                                                i == 'Тип' or i == 'Номер' or
+                                                                i == 'Описание' or i == 'Дата обращения'],
                                                        data=sue_avaria_df.to_dict('records'),
                                                        sort_action="native",
                                                        style_table={'height': '100px', 'overflowY': 'auto'},
@@ -223,7 +226,7 @@ app.layout = html.Div([
                                                                        overflow='hidden',
                                                                        textOverflow='ellipsis',
                                                                        maxWidth=0))], className='line_block',
-                                 style=dict(width='50%', border='1px solid #222780')),  # html div user graph
+                                 style=dict(border='1px solid #222780')),  # html div user graph
                         html.Div([html.Table([
                             html.Tr([
                                 html.Td([html.Label('Количество обращений'), ]),
@@ -249,16 +252,16 @@ app.layout = html.Div([
 
                             ]),
                         ])], className='line_block',
-                            style=dict(width='44%', border='1px solid #222780')),  # html div support graph
+                            style=dict(border='1px solid #222780')),  # html div support graph
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
-                    ]),
+                    ], className='pagewrap'),
                     html.Hr(),
                     html.Div([
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                         html.Div([dcc.Graph(id='users_figure')], className='line_block',
-                                 style=dict(width='30%', border='1px solid #222780')),  # html div user graph
+                                 style=dict(border='1px solid #222780')),  # html div user graph
                         html.Div([dcc.Graph(id='support_figure')], className='line_block',
-                                 style=dict(width='64%', border='1px solid #222780')),  # html div support graph
+                                 style=dict(border='1px solid #222780')),  # html div support graph
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
                     html.Br(),
@@ -356,7 +359,7 @@ app.layout = html.Div([
                         dcc.Graph(id='site_top_fig',
                                   figure=fig_site_top
                                   ),
-                    ], className='six columns'),
+                    ], className='line_block'),
                     # html.Div([
                     #     html.Br(),
                     #     html.Br(),
@@ -369,13 +372,13 @@ app.layout = html.Div([
                         dcc.Graph(id='site_top_fig2',
                                   figure=fig_site_top2
                                   ),
-                    ], className='five columns'),
+                    ], className='line_block'),
                     html.H3('Рейтинг посещаемости разделов сайта за год'),
                     html.Div([
                         dcc.Graph(id='site_top_fig3',
                                   figure=fig_site_top3
                                   ),
-                    ], className='six columns'),
+                    ], className='line_block', style=dict(border='1px sold black')),
                 ], selected_style=tab_selected_style),  # tab site
             ], colors=dict(border='#ebecf1', primary='#222780', background='#e8edff')),  # main tabs end
             html.Div(id='tabs_content')
@@ -461,14 +464,14 @@ def update_figure_support(start_date_user, end_date_user):
     osp_labels = ['SUE', 'Total']
     osp_values = [osp_count_tasks, etsp_count_tasks + sue_count_tasks]
 
-    if (etsp_count_tasks + sue_count_tasks + osp_count_tasks) > 0:
-        etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
-        sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
-        osp_persent = f'{(osp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
-    else:
-        etsp_persent = 0
-        sue_persent = 0
-        osp_persent = 0
+    # if (etsp_count_tasks + sue_count_tasks + osp_count_tasks) > 0:
+    #     etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
+    #     sue_persent = f'{(sue_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
+    #     osp_persent = f'{(osp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
+    # else:
+    #     etsp_persent = 0
+    #     sue_persent = 0
+    #     osp_persent = 0
 
     etsp_colors = ['#a92b2b', '#222780']
     sue_colors = ['#37a17c', '#222780']
@@ -481,14 +484,14 @@ def update_figure_support(start_date_user, end_date_user):
     fig.add_trace(go.Pie(labels=osp_labels, values=osp_values, name="ОСП", marker_colors=osp_colors), 1, 3)
 
     # Use `hole` to create a donut-like pie chart
-    fig.update_traces(hole=.4, hoverinfo="label+percent+name")
+    fig.update_traces(hole=.5, hoverinfo="label+percent+name")
 
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         # Add annotations in the center of the donut pies.
-        annotations=[dict(text=etsp_persent, x=0.11, y=0.5, align='center', font_size=15, showarrow=False),
-                     dict(text=sue_persent, x=0.50, y=0.5, align='center', font_size=15, showarrow=False),
-                     dict(text=osp_persent, x=0.89, y=0.5, align='center', font_size=15, showarrow=False)],
+        # annotations=[dict(text=etsp_persent, x=0.11, y=0.5, align='center', showarrow=False),
+        #              dict(text=sue_persent, x=0.50, y=0.5, align='center', showarrow=False),
+        #              dict(text=osp_persent, x=0.89, y=0.5, align='center', showarrow=False)],
         showlegend=False)
 
     return fig
@@ -500,16 +503,16 @@ def update_figure_support(start_date_user, end_date_user):
      Input('date_user', 'end_date'),
      ])
 def update_table_avaria(start_date_user, end_date_user):
-    sue_avaria_filtered_df = sue_avaria_df[(sue_avaria_df['start_date'] >= start_date_user) &
-                                           (sue_avaria_df['start_date'] <= end_date_user)]
+    sue_avaria_filtered_df = sue_avaria_df[(sue_avaria_df['Дата обращения'] >= start_date_user) &
+                                           (sue_avaria_df['Дата обращения'] <= end_date_user)]
 
     if len(sue_avaria_filtered_df) > 0:
         return sue_avaria_filtered_df.to_dict('records')
     else:
-        return [dict(registration_date='-', status='Аварийных инциндентов нет', event_number='-', title='-',
-                     plan_time='-', fact_time='-', user='-', timedelta='-', Отдел='-', month_open='-',
-                     month_solved='-', count_task='-', start_date='-', finish_date='-')]
+        return [{'Дата': '-', 'Тип': 'Аварийных инциндентов нет', 'Номер': '-', 'Описание': '-',
+                 'Плановое время': '-', 'Фактическое время': '-', 'Пользователь': '-', 'timedelta': '-', 'Отдел': '-',
+                 'month_open': '-', 'month_solved': '-', 'count_task': '-', 'Дата обращения': '-', 'finish_date': '-'}]
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.2.43', port=8050)
+    app.run_server(debug=True, host='192.168.1.4', port=8000)
