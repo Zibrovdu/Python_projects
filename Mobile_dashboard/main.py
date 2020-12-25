@@ -56,7 +56,10 @@ def load_data_site():
     for num in range(len(df2)):
         mask = df['Страница входа, ур. 2'].isin(df2.iloc[num])
         df.loc[mask, 'Название'] = df2.iloc[num][1]
-    return df
+    df3 = df[(df['Название'] == 'О Межрегиональном бухгалтерском УФК') | (df['Название'] == 'Новости') |
+             (df['Название'] == 'Документы') | (df['Название'] == 'Электронный бюджет') |
+             (df['Название'] == 'Иная деятельность') | (df['Название'] == 'Прием обращений')]
+    return df3
 
 
 site_top_df = load_data_site()
@@ -92,19 +95,20 @@ etsp_df = LoadEtspData()
 top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum()
                              .sort_values(ascending=False).head()
                              .reset_index()).rename(columns={'Имя затронутого пользователя': 'Пользователь',
-                                                             'count_task': 'Количество запросов'})
+                                                             'count_task': 'Обращения'})
 sue_df = LoadSueData()
 top_user_sue = pd.DataFrame(sue_df.groupby('user')['count_task'].sum()
                             .sort_values(ascending=False).head()
                             .reset_index()).rename(
-    columns={'user': 'Пользователь', 'count_task': 'Количество запросов'})
+    columns={'user': 'Пользователь', 'count_task': 'Обращения'})
 osp_df = LoadOspData()
 inf_systems_data = LoadInfSystemsData()
 
 sue_avaria_df = sue_df[(sue_df.status == 'Проблема') | (sue_df.status == 'Массовый инцидент')]
-sue_avaria_df.columns = ['Дата', 'Тип', 'Номер', 'Описание', 'Плановое время', 'Фактическое время',
+sue_avaria_df.columns = ['Дата обращения', 'Тип', 'Номер', 'Описание', 'Плановое время', 'Фактическое время',
                          'Пользователь', 'timedelta', 'Отдел', 'month_open', 'month_solved', 'count_task',
-                         'Дата обращения', 'finish_date']
+                         'Дата', 'finish_date']
+
 
 # print(sue_avaria_df)
 
@@ -123,39 +127,29 @@ def eval_expression(input_string):
     return eval(code, {"__builtins__": {}}, {})
 
 
-fig_site_top = go.Figure([go.Bar(
-    x=site_top_df['Визиты'],
-    y=site_top_df['Название'],
-    orientation='h',
-    text=site_top_df['Визиты'])])
-fig_site_top.update_traces(textposition='outside')
-fig_site_top.update_layout(title_text="Количество визитов", paper_bgcolor='#ebecf1', plot_bgcolor='#ebecf1')
+colors_site_top = ['#003b32', '#40817a', '#afbaa3', '#d0d0b8', '#037c87', '#7cbdc9']
+
+fig_site_top = go.Figure([go.Bar(x=site_top_df['Визиты'],
+                                 y=site_top_df['Название'],
+                                 orientation='h',
+                                 marker_color=colors_site_top,
+                                 text=site_top_df['Визиты'])])
+fig_site_top.update_traces(textposition='auto')
+fig_site_top.update_layout(title_text="Количество визитов по разделам сайта", paper_bgcolor='#ebecf1', plot_bgcolor='#ebecf1')
 
 labels = list(site_label1['Название'].head(5))
 labels.append("Остальные")
 values = list(site_label1['Посетители'].head(5))
 values.append(site_label1.loc[5:14]['Посетители'].sum())
 
-fig_site_top2 = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
+colors_site = ['#ba83c4', '#fca3b5', '#b1d1ed', '#fcf3b5', '#efc67c', '#82bcc7']
+fig_site_top2 = go.Figure(data=[go.Pie(labels=labels,
+                                       values=values,
+                                       marker_colors=colors_site,
+                                       hole=.2)])
+
 fig_site_top2.update_layout(title_text="Количество посетителей", paper_bgcolor='#ebecf1', plot_bgcolor='#ebecf1')
 
-fig_inf_systems = go.Figure()
-for i in range(len(inf_systems_data)):
-    fig_inf_systems.add_trace(go.Bar(y=inf_systems_data.columns,
-                                     x=inf_systems_data.iloc[i],
-                                     name=inf_systems_data.index[i],
-                                     orientation='h',
-                                     text=inf_systems_data.iloc[i],
-                                     textposition='inside'))
-fig_inf_systems.update_layout(barmode='stack',
-                              height=700,
-                              legend_font_size=10,
-                              legend_itemwidth=40,
-                              paper_bgcolor='#ebecf1',
-                              plot_bgcolor='#ebecf1')
-fig_inf_systems.update_yaxes(tickmode="linear")
-
-# df = load_data()
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
@@ -164,7 +158,7 @@ tab_selected_style = dict(backgroundColor='#ebecf1', fontWeight='bold')
 app.layout = html.Div([
     html.Div([
         # html.H1("Межрегиональное бухгалтерское УФК"),
-        html.H2('Отчет о работе Отдела сопровождения пользователей'),
+        html.H2('Отдел сопровождения пользователей'),
         html.Img(src="assets/logo.png")
     ], className="banner"),
     html.Div([
@@ -199,14 +193,14 @@ app.layout = html.Div([
                                   dash_table.DataTable(id='sue_avaria',
                                                        columns=[{"name": i, "id": i} for i in sue_avaria_df.columns if
                                                                 i == 'Тип' or i == 'Номер' or
-                                                                i == 'Описание' or i == 'Дата обращения'],
+                                                                i == 'Описание' or i == 'Дата'],
                                                        data=sue_avaria_df.to_dict('records'),
                                                        sort_action="native",
                                                        style_table={'height': '100px', 'overflowY': 'auto'},
                                                        fixed_rows={'headers': True},
                                                        style_as_list_view=True,
                                                        cell_selectable=False,
-                                                       style_data=dict(width='10%'),
+                                                       style_data=dict(width='20%'),
                                                        css=[{
                                                            'selector': '.dash-spreadsheet td div',
                                                            'rule': '''
@@ -225,8 +219,8 @@ app.layout = html.Div([
                                                        style_cell=dict(textAlign='center',
                                                                        overflow='hidden',
                                                                        textOverflow='ellipsis',
-                                                                       maxWidth=0))], className='line_block',
-                                 style=dict(border='1px solid #222780')),  # html div user graph
+                                                                       maxWidth=0))], className='line_block'),
+                        # html div user graph
                         html.Div([html.Table([
                             html.Tr([
                                 html.Td([html.Label('Количество обращений'), ]),
@@ -234,8 +228,8 @@ app.layout = html.Div([
                                 html.Td('Среднее время решения', colSpan=3)
                             ]),
                             html.Tr([
-                                html.Td(id='tasks', rowSpan=2),
-                                html.Td(id='users', rowSpan=2),
+                                html.Td(id='tasks', rowSpan=2, style={'font-size': '2em'}),
+                                html.Td(id='users', rowSpan=2, style={'font-size': '2em'}),
                                 html.Td('ЕЦП'),
                                 html.Td('СУЭ'),
                                 html.Td('ОСП')
@@ -251,28 +245,23 @@ app.layout = html.Div([
                             html.Tr([
 
                             ]),
-                        ])], className='line_block',
-                            style=dict(border='1px solid #222780')),  # html div support graph
+                        ])], className='line_block'),  # html div support graph
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
-                    ], className='pagewrap'),
+                    ]),
                     html.Hr(),
                     html.Div([
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
-                        html.Div([dcc.Graph(id='users_figure')], className='line_block',
-                                 style=dict(border='1px solid #222780')),  # html div user graph
-                        html.Div([dcc.Graph(id='support_figure')], className='line_block',
-                                 style=dict(border='1px solid #222780')),  # html div support graph
+                        html.Div([dcc.Graph(id='users_figure')], className='line_block'),  # html div user graph
+                        html.Div([dcc.Graph(id='support_figure')], className='line_block'),  # html div support graph
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
                     html.Br(),
                     html.Div([html.H3('ТОП-5 пользователей направивших обращения (по техподдержкам)')],
-                             style=dict(color='#222780')),
+                             style={'color': '#222780', 'font-type': 'bold'}),
                     html.Div([
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
-                        html.Div([html.H4('ЕЦП')], className='line_block',
-                                 style=dict(color='#222780', border='1px solid #222780')),  # html div
-                        html.Div([html.H4('СУЭ')], className='line_block',
-                                 style=dict(color='#222780', border='1px solid #222780')),  # html div
+                        html.Div([html.H4('ЕЦП')], className='line_block'),  # html div
+                        html.Div([html.H4('СУЭ')], className='line_block'),  # html div
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
                     html.Div([
@@ -284,9 +273,12 @@ app.layout = html.Div([
                                                  sort_action="native",
                                                  style_as_list_view=True,
                                                  cell_selectable=False,
-                                                 style_data=dict(width='50px'),
-                                                 style_cell=dict(textAlign='center')
-                                                 )], className='line_block', style=dict(border='1px solid #222780')),
+                                                 style_data={'width': '50px', 'font-size': ' 1.3em'},
+                                                 style_cell=dict(textAlign='center'),
+                                                 style_cell_conditional=[
+                                                     {'if': {'column_id': 'Пользователь'},
+                                                      'textAlign': 'left'}]
+                                                 )], className='line_block'),
                         html.Div([
                             dash_table.DataTable(id='table_top_sue',
                                                  columns=[{"name": i, "id": i} for i in top_user_sue.columns],
@@ -294,9 +286,12 @@ app.layout = html.Div([
                                                  sort_action="native",
                                                  style_as_list_view=True,
                                                  cell_selectable=False,
-                                                 style_data=dict(width='50px'),
-                                                 style_cell=dict(textAlign='center')
-                                                 )], className='line_block', style=dict(border='1px solid #222780')),
+                                                 style_data={'width': '50px', 'font-size': ' 1.3em'},
+                                                 style_cell=dict(textAlign='center'),
+                                                 style_cell_conditional=[
+                                                     {'if': {'column_id': 'Пользователь'},
+                                                      'textAlign': 'left'}]
+                                                 )], className='line_block'),
                         # html div
                         html.Div([], style=dict(width='100%', height='1px', clear='both', float='left')),
                     ]),
@@ -306,13 +301,13 @@ app.layout = html.Div([
                     html.Div([
                         html.Table([
                             html.Tr([
-                                html.Td([html.Label('Пользователей ГИИС «Электронный бюджет» в Управлении')]),
+                                html.Td([html.Label('Подключено сотрудников МБУ ФК к ГИИС "Электронный бюджет"')]),
                                 html.Td([html.Label('Сформировано заявок:')], colSpan=2)
                             ]),
                             html.Tr([
                                 html.Td([daq.LEDDisplay(id='total_tasks', value=254, color='#222780',
                                                         backgroundColor='#e8edff', )], rowSpan=2),
-                                html.Td([html.Label('на подключение к ГИИС «Электронный бюджет»')]),
+                                html.Td([html.Label('на подключение»')]),
                                 html.Td([html.Label('на лишение полномочий')])
                             ]),
                             html.Tr([
@@ -324,10 +319,14 @@ app.layout = html.Div([
                         ], className='table_budget')
                     ]),
                     html.Div([
-                        dcc.Graph(id='inf_systems',
-                                  figure=fig_inf_systems
-                                  )
-
+                        html.P("Показать/скрыть легенду"),
+                        dcc.RadioItems(id='leg_show',
+                                       options=[{'label': 'Показать', 'value': 1},
+                                                {'label': 'Скрыть', 'value': 0}],
+                                       value=0,
+                                       labelStyle={'display': 'inline-block'}
+                                       ),
+                        dcc.Graph(id='inf_systems')
                     ], style=dict(background='#ebecf1'))
                 ], selected_style=tab_selected_style),  # tab tech
                 dcc.Tab(label='Статистика сайта', value='s', children=[
@@ -351,36 +350,11 @@ app.layout = html.Div([
                     html.Br(),
                     html.Hr(),
                     html.H3('Рейтинг посещаемости разделов сайта за год'),
-                    html.Div([
-                        # html.Hr(),
-                        # html.Br(),
-                        # dcc.Dropdown(id='site_dropdown1',
-                        #              className = 'dropdown',),
-                        dcc.Graph(id='site_top_fig',
-                                  figure=fig_site_top
-                                  ),
-                    ], className='line_block'),
-                    # html.Div([
-                    #     html.Br(),
-                    #     html.Br(),
-                    # ]),
-                    html.Div([
-                        # html.Hr(),
-                        # html.Br(),
-                        # dcc.Dropdown(id='site_dropdown1',
-                        #              className = 'dropdown',),
-                        dcc.Graph(id='site_top_fig2',
-                                  figure=fig_site_top2
-                                  ),
-                    ], className='line_block'),
-                    html.H3('Рейтинг посещаемости разделов сайта за год'),
-                    html.Div([
-                        dcc.Graph(id='site_top_fig3',
-                                  figure=fig_site_top3
-                                  ),
-                    ], className='line_block', style=dict(border='1px sold black')),
+                    html.Div([dcc.Graph(id='site_top_fig', figure=fig_site_top)]),
+                    html.Div([dcc.Graph(id='site_top_fig2', figure=fig_site_top2)]),
+                    html.Div([dcc.Graph(id='site_top_fig3', figure=fig_site_top3)]),
                 ], selected_style=tab_selected_style),  # tab site
-            ], colors=dict(border='#ebecf1', primary='#222780', background='#e8edff')),  # main tabs end
+            ], colors=dict(border='#ebecf1', primary='#222780', background='#33ccff')),  # main tabs end
             html.Div(id='tabs_content')
         ])  # html.div 2
     ], style=dict(background='#ebecf1'))  # html.div 1
@@ -432,8 +406,8 @@ def update_figure_user(start_date_user, end_date_user):
                                   y=0.2,
                                   xanchor="right",
                                   x=0.5),
-                              paper_bgcolor='#e8edff',
-                              plot_bgcolor='#e8edff'
+                              paper_bgcolor='#ebecf1',
+                              plot_bgcolor='#ebecf1'
                               )
     fig_support.update_xaxes(ticks="inside",
                              tickson="boundaries")
@@ -453,16 +427,16 @@ def update_figure_support(start_date_user, end_date_user):
     sue_filtered_df = sue_df[(sue_df['start_date'] >= start_date_user) & (sue_df['start_date'] <= end_date_user)]
     osp_filtered_df = osp_df[(osp_df['start_date'] >= start_date_user) & (osp_df['start_date'] <= end_date_user)]
 
-    etsp_count_tasks = etsp_filtered_df['count_task'].sum()
-    sue_count_tasks = sue_filtered_df['count_task'].sum()
-    osp_count_tasks = osp_filtered_df['count_task'].sum()
-
-    etsp_labels = ['ETSP', 'Total']
-    etsp_values = [etsp_count_tasks, sue_count_tasks + osp_count_tasks]
-    sue_labels = ['SUE', 'Total']
-    sue_values = [sue_count_tasks, etsp_count_tasks + osp_count_tasks]
-    osp_labels = ['SUE', 'Total']
-    osp_values = [osp_count_tasks, etsp_count_tasks + sue_count_tasks]
+    # etsp_count_tasks = etsp_filtered_df['count_task'].sum()
+    # sue_count_tasks = sue_filtered_df['count_task'].sum()
+    # osp_count_tasks = osp_filtered_df['count_task'].sum()
+    #
+    # etsp_labels = ['ETSP', 'Total']
+    # etsp_values = [etsp_count_tasks, sue_count_tasks + osp_count_tasks]
+    # sue_labels = ['SUE', 'Total']
+    # sue_values = [sue_count_tasks, etsp_count_tasks + osp_count_tasks]
+    # osp_labels = ['SUE', 'Total']
+    # osp_values = [osp_count_tasks, etsp_count_tasks + sue_count_tasks]
 
     # if (etsp_count_tasks + sue_count_tasks + osp_count_tasks) > 0:
     #     etsp_persent = f'{(etsp_count_tasks / (etsp_count_tasks + sue_count_tasks + osp_count_tasks)):.2%}'
@@ -473,26 +447,32 @@ def update_figure_support(start_date_user, end_date_user):
     #     sue_persent = 0
     #     osp_persent = 0
 
-    etsp_colors = ['#a92b2b', '#222780']
-    sue_colors = ['#37a17c', '#222780']
-    osp_colors = ['#a2d5f2', '#222780']
-
-    fig = make_subplots(rows=1, cols=3, specs=[[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}]])
-
-    fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ЕЦП", marker_colors=etsp_colors), 1, 1)
-    fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="СУЭ", marker_colors=sue_colors), 1, 2)
-    fig.add_trace(go.Pie(labels=osp_labels, values=osp_values, name="ОСП", marker_colors=osp_colors), 1, 3)
+    # etsp_colors = ['#a92b2b', '#222780']
+    # sue_colors = ['#37a17c', '#222780']
+    # osp_colors = ['#a2d5f2', '#222780']
+    #
+    # fig = make_subplots(rows=1, cols=3, specs=[[{'type': 'domain'}, {'type': 'domain'}, {'type': 'domain'}]])
+    #
+    # fig.add_trace(go.Pie(labels=etsp_labels, values=etsp_values, name="ЕЦП", marker_colors=etsp_colors), 1, 1)
+    # fig.add_trace(go.Pie(labels=sue_labels, values=sue_values, name="СУЭ", marker_colors=sue_colors), 1, 2)
+    # fig.add_trace(go.Pie(labels=osp_labels, values=osp_values, name="ОСП", marker_colors=osp_colors), 1, 3)
 
     # Use `hole` to create a donut-like pie chart
-    fig.update_traces(hole=.5, hoverinfo="label+percent+name")
+    labels = ["ЕЦП", "СУЭ", "ОСП"]
+    values = [etsp_filtered_df['count_task'].sum(), sue_filtered_df['count_task'].sum(),
+              osp_filtered_df['count_task'].sum()]
+    colors = ['#a92b2b', '#37a17c', '#a2d5f2']
+
+    fig = go.Figure(go.Pie(labels=labels, values=values, marker_colors=colors))
+    fig.update_traces(hoverinfo="label+percent+name")
 
     fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='#ebecf1',
         # Add annotations in the center of the donut pies.
         # annotations=[dict(text=etsp_persent, x=0.11, y=0.5, align='center', showarrow=False),
         #              dict(text=sue_persent, x=0.50, y=0.5, align='center', showarrow=False),
         #              dict(text=osp_persent, x=0.89, y=0.5, align='center', showarrow=False)],
-        showlegend=False)
+        showlegend=True)
 
     return fig
 
@@ -512,6 +492,31 @@ def update_table_avaria(start_date_user, end_date_user):
         return [{'Дата': '-', 'Тип': 'Аварийных инциндентов нет', 'Номер': '-', 'Описание': '-',
                  'Плановое время': '-', 'Фактическое время': '-', 'Пользователь': '-', 'timedelta': '-', 'Отдел': '-',
                  'month_open': '-', 'month_solved': '-', 'count_task': '-', 'Дата обращения': '-', 'finish_date': '-'}]
+
+
+@app.callback(
+    Output("inf_systems", "figure"),
+    [Input("leg_show", "value")])
+def modify_legend(show_leg):
+    fig_inf_systems = go.Figure()
+    for i in range(len(inf_systems_data)):
+        fig_inf_systems.add_trace(go.Bar(y=inf_systems_data.columns,
+                                         x=inf_systems_data.iloc[i],
+                                         name=inf_systems_data.index[i],
+                                         orientation='h',
+                                         text=inf_systems_data.iloc[i],
+                                         textposition='inside'))
+    fig_inf_systems.update_layout(barmode='stack',
+                                  height=1000,
+                                  # legend_font_size=10,
+                                  # legend_itemwidth=40,
+                                  legend_xanchor='right',
+                                  paper_bgcolor='#ebecf1',
+                                  plot_bgcolor='#ebecf1',
+                                  showlegend=bool(show_leg))
+    fig_inf_systems.update_yaxes(tickmode="linear")
+
+    return fig_inf_systems
 
 
 if __name__ == "__main__":
