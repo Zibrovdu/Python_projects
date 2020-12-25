@@ -2,16 +2,17 @@
     height: 75px;
     width/max-width: 1800px;
     margin: 0 auto;
-    background-color: #6678b1;
+    background-color: #1959d1;
     border-radius: 2px;
 }
 
 .banner h2{
-    color: rgb(194, 194, 194);
+    color: rgb(255, 255, 255);
     padding-top: 10px;
     margin-left: 2%;
     display: inline-block;
 }
+
 
 .banner Img{
     position: relative;
@@ -54,7 +55,7 @@ table2 {
 th {
   font-weight: normal;
   color: #039;
-  border-bottom: 2px solid #6678b1;
+
   padding: 10px 8px;
 }
 td {
@@ -62,7 +63,7 @@ td {
   padding: 9px 8px;
   transition: .3s linear;
 }
-tr:hover td {color: #6699ff;}
+tr:hover td {color: #33ccff;}
 
 .table_budget {
   text-align: center;
@@ -76,7 +77,7 @@ tr:hover td {color: #6699ff;}
 
 .line_block {
         width: 44%;
-        background: #e8edff;
+        background: #ebecf1;
         float:left;
         margin: 0 15px 15px 0;
         text-align: center;
@@ -97,3 +98,4 @@ media screen and (max-width: 650px) {
 
 
 }
+
