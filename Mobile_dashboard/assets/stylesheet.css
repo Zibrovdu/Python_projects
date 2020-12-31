@@ -66,20 +66,26 @@ td {
 tr:hover td {color: #33ccff;}
 
 .table_budget {
-  text-align: center;
-  border: 1px solid black;
-  color: white;
+    width: 0%;
+    float: left;
+    text-align: center;
+    border: 1px solid black;
+    color: white;
 }
 .td {
   color: white;
   transition: .3s linear;
 }
 
+.block_1 {
+    margin: 0 0 0 auto;
+    float:left;
+}
+
 .line_block {
-        width: 44%;
         background: #ebecf1;
         float:left;
-        margin: 0 15px 15px 0;
+        margin: 0 0 0 0;
         text-align: center;
         padding: 10px;
         margin-left: 1%;
@@ -95,7 +101,14 @@ tr:hover td {color: #33ccff;}
 media screen and (max-width: 650px) {
     .line_block {
     width:  auto;}
-
-
 }
 
+
+
+.slabel_block {
+        width: 20%;
+        background: #ebecf1;
+        text-align: center;
+        padding: 10px;
+        margin: 0 auto;
+        }

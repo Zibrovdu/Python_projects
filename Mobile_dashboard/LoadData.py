@@ -259,7 +259,7 @@ def CountMeanTime(filtered_df):
     avg_time = days, hours, minutes, seconds
 
     if count_tasks == 0:
-        avg_time = 'Данные отсутствуют'
+        avg_time = '-'
     elif avg_time[0] == 0:
         avg_time = f'{avg_time[1]} час. {avg_time[2]} мин.'
     else:
