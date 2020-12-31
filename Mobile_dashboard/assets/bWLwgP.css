@@ -408,6 +408,20 @@ on small devices, paste the mobile query code up in the buttons section and styl
 there.
 */
 
+.slabel_block {
+        width: 20%;
+        background: #ebecf1;
+        float:left;
+        text-align: center;
+        padding: 10px;
+        margin: 0 auto;
+        }
+.range_block {
+        width: 30%;
+        background: #ebecf1;
+        text-align: center;
+        margin-left: 1%;
+        }
 
 /* Larger than mobile */
 @media (min-width: 400px) {}
@@ -455,5 +469,41 @@ td {
   padding: 8px;
   text-align: center;
 }
+
+
+.s_line_block {
+        width: 30%;
+        background: #ebecf1;
+        float:left;
+        text-align: center;
+        padding: 10px;
+        margin-left: 1%;
+        }
+
+.button_block {
+    width: 20%;
+    background: #ebecf1;
+    float:left;
+    text-align: center;
+    padding: 10px;
+    margin-left: 1%;
+}
+
+
+media screen and (max-width: 650px) {
+    .line_block {
+    width:  auto;}
+    .s_line_block {
+    width: auto;}
+}
+
+.bblock {
+     display: inline-block; /*Задаем обтекание*/
+     margin: 5% 1%;
+     line-height: 40px;/*Высота строки +  верт. центрирования текста*/
+     font-size: 20px;
+     vertical-align: top;
+     height: 30px;
+    }
 
 
