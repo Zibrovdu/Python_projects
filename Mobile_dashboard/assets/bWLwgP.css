@@ -407,7 +407,7 @@ near the relevant code. For example, if you wanted to change the styles for butt
 on small devices, paste the mobile query code up in the buttons section and style it
 there.
 */
-
+/*
 .slabel_block {
         width: 20%;
         background: #ebecf1;
@@ -416,13 +416,14 @@ there.
         padding: 10px;
         margin: 0 auto;
         }
+
 .range_block {
         width: 30%;
         background: #ebecf1;
         text-align: center;
         margin-left: 1%;
         }
-
+*/
 /* Larger than mobile */
 @media (min-width: 400px) {}
 
@@ -469,7 +470,7 @@ td {
   padding: 8px;
   text-align: center;
 }
-
+/*
 
 .s_line_block {
         width: 30%;
@@ -489,7 +490,6 @@ td {
     margin-left: 1%;
 }
 
-
 media screen and (max-width: 650px) {
     .line_block {
     width:  auto;}
@@ -497,13 +497,13 @@ media screen and (max-width: 650px) {
     width: auto;}
 }
 
-.bblock {
+
+
+.rblock {
      display: inline-block; /*Задаем обтекание*/
-     margin: 5% 1%;
-     line-height: 40px;/*Высота строки +  верт. центрирования текста*/
+ /*    margin: 5% 1%;
+     line-height: 45px
      font-size: 20px;
      vertical-align: top;
-     height: 30px;
     }
-
-
+    */

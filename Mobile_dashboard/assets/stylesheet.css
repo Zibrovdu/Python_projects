@@ -97,18 +97,39 @@ tr:hover td {color: #33ccff;}
     font-color: rgb(34,39,128);
 }
 
-
 media screen and (max-width: 650px) {
     .line_block {
     width:  auto;}
 }
 
+.bblock {
+     display: inline-block; /*Задаем обтекание*/
+     margin-top: 40px;
+     line-height: 40px;/*Высота строки +  верт. центрирования текста*/
+     font-size: 20px;
+     margin: 0;
+     vertical-align: top;
+     height: 50px;
+     padding: 10px;
+    }
 
-
-.slabel_block {
-        width: 20%;
-        background: #ebecf1;
-        text-align: center;
-        padding: 10px;
-        margin: 0 auto;
-        }
+.wrapper-dropdown-3 {
+/* Размер и позиционирование */
+    position: relative;
+    width: 290px;
+    margin: 0;
+    padding: 0px;
+    font-weight: bold;
+    color: #012e67;
+}
+.wrapper-dropdown-4 {
+/* Размер и позиционирование */
+    position: relative;
+    width: 200px;
+    margin: 0;
+    padding: 0px;
+    background: #b1d5fa;
+    border-radius: 1px;
+    font-weight: bold;
+    color: #012e67;
+}
