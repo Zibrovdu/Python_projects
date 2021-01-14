@@ -4,6 +4,11 @@ from datetime import date, timedelta
 current_month = date.today().month
 current_day = date.today().day
 current_year = date.today().year
+current_week = date.today().isocalendar()[1]
+
+end_day = (date.today() + timedelta(days=7)).day
+end_month = (date.today() + timedelta(days=7)).month
+end_year = (date.today() + timedelta(days=7)).year
 
 
 def LoadEtspData():
@@ -20,6 +25,8 @@ def LoadEtspData():
 
     df['month_open'] = df['Дата/время регистрации'].dt.month
     df['month_solved'] = df['Дата решения'].dt.month
+    df['week_open'] = df['Дата/время регистрации'].dt.isocalendar()['week']
+    df['week_solved'] = df['Дата решения'].dt.isocalendar()['week']
     df['count_task'] = 1
     df['start_date'] = df['Дата/время регистрации'].dt.date.apply(lambda x: str(x))
     df['finish_date'] = df['Дата решения'].dt.date.apply(lambda x: str(x))
@@ -42,6 +49,8 @@ def LoadSueData():
 
     df['month_open'] = df['registration_date'].dt.month
     df['month_solved'] = df['fact_time'].dt.month
+    df['week_open'] = df['registration_date'].dt.isocalendar()['week']
+    df['week_solved'] = df['fact_time'].dt.isocalendar()['week']
     df['count_task'] = 1
     df['start_date'] = df['registration_date'].dt.date.apply(lambda x: str(x))
     df['finish_date'] = df['fact_time'].dt.date.apply(lambda x: str(x))
@@ -57,6 +66,8 @@ def LoadOspData():
     osp_df['timedelta'] = osp_df['Фактическое время выполнения'] - osp_df['Дата регистрации']
     osp_df['month_open'] = osp_df['Дата регистрации'].dt.month
     osp_df['month_solved'] = osp_df['Фактическое время выполнения'].dt.month
+    osp_df['week_open'] = osp_df['Дата регистрации'].dt.isocalendar()['week']
+    osp_df['week_solved'] = osp_df['Фактическое время выполнения'].dt.isocalendar()['week']
     osp_df['count_task'] = 1
     osp_df['start_date'] = osp_df['Дата регистрации'].dt.date.apply(lambda x: str(x))
     osp_df['finish_date'] = osp_df['Фактическое время выполнения'].dt.date.apply(lambda x: str(x))
@@ -165,8 +176,6 @@ def GetIntent(df):
             mask = temp_df['text'].str.contains(i)
             temp_df.loc[mask, 'intent'] = item
 
-    # total_df = pd.DataFrame(columns=['num', 'text', 'intent'])
-
     df3 = temp_df[temp_df.loc[:, 'intent'] == '1С ЭБ']
     mask = df3['text'].str.contains('работает')
     df3.loc[mask, 'intent'] = 'не работает (1С ЭБ)'
@@ -269,17 +278,7 @@ def CountMeanTime(filtered_df):
 
 
 def LoadInfSystemsData():
-    # df = pd.read_excel('data.xlsx', sheet_name='Работа в ИС', usecols='A,D:O')
-    # df.dropna(axis=0, inplace=True)
-    # df['Unnamed: 0'] = df['Unnamed: 0'].astype(int)
-    # df = df.T
-    # new_header = df.iloc[0]  # grab the first row for the header
-    # df = df[1:]  # take the data less the header row
-    # df.columns = new_header  # set the header row as the df header
-
     df = pd.read_excel('assets/dostup.xlsx', sheet_name='Лист5', index_col=0)
     df.drop('Номер отдела', axis=1, inplace=True)
 
     return df
-
-
