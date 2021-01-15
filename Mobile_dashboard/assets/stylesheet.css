@@ -105,7 +105,7 @@ media screen and (max-width: 650px) {
 .bblock {
      display: inline-block; /*Задаем обтекание*/
      margin-top: 40px;
-     line-height: 40px;/*Высота строки +  верт. центрирования текста*/
+     /*line-height: 40px;/*Высота строки +  верт. центрирования текста*/
      font-size: 20px;
      margin: 0;
      vertical-align: top;

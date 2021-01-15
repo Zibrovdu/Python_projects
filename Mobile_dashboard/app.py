@@ -1,24 +1,24 @@
+import calendar
+import locale
+from datetime import date
+
 import dash
 import dash_core_components as dcc
-import dash_html_components as html
 import dash_daq as daq
+import dash_html_components as html
 import dash_table
-from dash.dependencies import Input, Output
-import plotly.graph_objects as go
 import pandas as pd
-from datetime import date
+import plotly.graph_objects as go
+from dash.dependencies import Input, Output
+
 import load_data as ld
+
+locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
 
 def load_data():
     df_load = pd.read_excel('data.xlsx', sheet_name='Данные')
     df_load.set_index(df_load.columns[0], inplace=True)
-    # df_load['month'] = pd.to_datetime(df_load.index)
-    # df_load['month'] = df_load['month'].dt.month
-    # df_load['year'] = pd.to_datetime(df_load.index)
-    # df_load['year'] = df_load['year'].dt.year
-    # df_load['day'] = pd.to_datetime(df_load.index)
-    # df_load['day'] = df_load['day'].dt.day
     return df_load
 
 
@@ -133,21 +133,10 @@ choice_type = [
     dict(label='Произвольный период', value='p')
 ]
 
-d_month = [
-    dict(label='Январь', value='1'),
-    dict(label='Февраль', value='2'),
-    dict(label='Март', value='3'),
-    dict(label='Апрель', value='4'),
-    dict(label='Май', value='5'),
-    dict(label='Июнь', value='6'),
-    dict(label='Июль', value='7'),
-    dict(label='Август', value='8'),
-    dict(label='Сентябрь', value='9'),
-    dict(label='Октябрь', value='10'),
-    dict(label='Ноябрь', value='11'),
-    dict(label='Декабрь', value='12')]
+months = list(calendar.month_name)
+d_month = [{"label": months[i], "value": i} for i in range(1, 13)]
 
-d_week = [{"label": f'Неделя {i}', "value": i} for i in range(1, 53)]
+d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "value": i} for i in range(1, 53)]
 
 app.layout = html.Div([
     html.Div([
@@ -164,16 +153,16 @@ app.layout = html.Div([
                                              optionHeight=50,
                                              value='m',
                                              disabled=False)
-                                ], className='wrapper-dropdown-3', style=dict(width='450px', display='block'))],
-                     className='bblock'), ]),  # choice period dropdown
-        html.Div([html.Div([dcc.Dropdown(id='month_choice',
-                                         options=d_month,
-                                         searchable=False,
-                                         clearable=False,
-                                         value=ld.current_month,
-                                         disabled=False
-                                         )], className='wrapper-dropdown-3', style=dict(width='170px'))],
-                 className='bblock'),  # Month_choice dropdown
+                                ], className='wrapper-dropdown-3', style=dict(width='295px', display='block'))],
+                     className='bblock'),  # choice period dropdown
+            html.Div([html.Div([dcc.Dropdown(id='month_choice',
+                                             options=d_month,
+                                             searchable=False,
+                                             clearable=False,
+                                             value=ld.current_month,
+                                             disabled=False
+                                             )], className='wrapper-dropdown-3', style=dict(width='170px'))],
+                     className='bblock'), ]),  # Month_choice dropdown
         html.Div([html.Div([dcc.Dropdown(id='week_choice',
                                          options=d_week,
                                          searchable=False,
@@ -181,16 +170,17 @@ app.layout = html.Div([
                                          value=ld.current_week,
                                          style=dict(width='100%', heigth='60px'),
                                          disabled=False
-                                         )], className='wrapper-dropdown-3', style=dict(width='170px'))],
+                                         )], className='wrapper-dropdown-3', style=dict(width='400px'))],
                  className='bblock'),  # Week_choice dropdown
         html.Div([html.Div([dcc.DatePickerRange(id='period_choice',
                                                 display_format='DD-MM-YYYY',
-                                                min_date_allowed=date(2019, 9, 1),
-                                                max_date_allowed=date(2020, 12, 31),
+                                                min_date_allowed=date(2020, 1, 1),
+                                                max_date_allowed=date(2021, 12, 31),
                                                 start_date=date(2020, 12, 10),
                                                 end_date=date(2020, 12, 18),
+                                                style=dict(background='#b1d5fa'),
                                                 clearable=False
-                                                )], className='wrapper-dropdown-3')], className='bblock',
+                                                )])], className='bblock',
                  style=dict(heigth='45px')),  # Period_choice range picker
     ], style=dict(background='#b1d5fa')),
     html.Div([
@@ -274,9 +264,8 @@ app.layout = html.Div([
                                                  cell_selectable=False,
                                                  style_data={'width': '50px', 'font-size': ' 1.3em'},
                                                  style_cell=dict(textAlign='center'),
-                                                 style_cell_conditional=[
-                                                     {'if': {'column_id': 'Пользователь'},
-                                                      'textAlign': 'left'}]
+                                                 style_cell_conditional=[{'if': {'column_id': 'Пользователь'},
+                                                                          'textAlign': 'left'}]
                                                  )], className='line_block', style=dict(width='46%')),
                         html.Div([
                             dash_table.DataTable(id='table_top_sue',
@@ -286,9 +275,8 @@ app.layout = html.Div([
                                                  cell_selectable=False,
                                                  style_data={'width': '50px', 'font-size': ' 1.3em'},
                                                  style_cell=dict(textAlign='center'),
-                                                 style_cell_conditional=[
-                                                     {'if': {'column_id': 'Пользователь'},
-                                                      'textAlign': 'left'}]
+                                                 style_cell_conditional=[{'if': {'column_id': 'Пользователь'},
+                                                                          'textAlign': 'left'}]
                                                  )], className='line_block', style=dict(width='46%')),
                     ]),
                 ], selected_style=tab_selected_style),  # tab user

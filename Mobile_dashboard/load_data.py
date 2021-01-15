@@ -282,3 +282,21 @@ def LoadInfSystemsData():
     df.drop('Номер отдела', axis=1, inplace=True)
 
     return df
+
+
+def GetPeriod(year, week):
+    first_year_day = date(year, 1, 1)
+    if first_year_day.weekday() > 3:
+        first_week_day = first_year_day + timedelta(7 - first_year_day.weekday())
+    else:
+        first_week_day = first_year_day - timedelta(first_year_day.weekday())
+
+    dlt_start = timedelta(days=(week - 1) * 7)
+    dlt_end = timedelta(days=(((week - 1) * 7) + 6))
+
+    start_day_of_week = first_week_day + dlt_start
+    end_day_of_week = first_week_day + dlt_end
+
+    period = ' - '.join([start_day_of_week.strftime("%d/%m/%Y"), end_day_of_week.strftime("%d/%m/%Y")])
+
+    return period
