@@ -1,6 +1,7 @@
 # import calendar
 # import locale
-from datetime import date
+# from datetime import date
+import datetime as dt
 
 import dash
 import dash_core_components as dcc
@@ -17,13 +18,6 @@ import log_writer as lw
 
 
 # locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
-
-
-def load_data():
-    df_load = pd.read_excel('data.xlsx', sheet_name='Данные')
-    df_load.set_index(df_load.columns[0], inplace=True)
-
-    return df_load
 
 
 def load_data_site():
@@ -57,10 +51,6 @@ def load_data_site():
 
 site_top_df = load_data_site()
 site_top_df.sort_values('Визиты', inplace=True)
-site_label = site_top_df.sort_values('Название').reset_index().drop('index', axis=1)
-
-site_1_df = pd.read_excel('site.xlsx', skiprows=6, nrows=1, usecols='A,F,G,H,N')
-
 site_label1 = site_top_df.sort_values('Посетители', ascending=False).reset_index().drop('index', axis=1)
 
 
@@ -109,7 +99,6 @@ date2 = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
 metrika_df = si.get_site_info(date1, date2)
 # ------------------------------------- end load data block ------------------------------------------------------
 
-
 colors_site_top = ['#003b32', '#40817a', '#afbaa3', '#d0d0b8', '#037c87', '#7cbdc9']
 
 fig_site_top = go.Figure([go.Bar(x=site_top_df['Визиты'],
@@ -155,8 +144,6 @@ d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "v
 date1 = ld.GetPeriod(ld.current_year, ld.current_week)[:10]
 date2 = ld.GetPeriod(ld.current_year, ld.current_week)[13:]
 
-print(date1, date2)
-
 app.layout = html.Div([
     html.Div([
         html.H2('Отдел сопровождения пользователей'),
@@ -193,10 +180,10 @@ app.layout = html.Div([
                  className='bblock'),  # Week_choice dropdown
         html.Div([html.Div([dcc.DatePickerRange(id='period_choice',
                                                 display_format='DD-MM-YYYY',
-                                                min_date_allowed=date(2019, 9, 1),
-                                                max_date_allowed=date(2020, 12, 31),
-                                                start_date=date(2020, 12, 10),
-                                                end_date=date(2020, 12, 18),
+                                                min_date_allowed=dt.date(2019, 9, 1),
+                                                max_date_allowed=dt.date(2020, 12, 31),
+                                                start_date=dt.date(2020, 12, 10),
+                                                end_date=dt.date(2020, 12, 18),
                                                 updatemode='bothdates',
                                                 style=dict(background='#b1d5fa'),
                                                 clearable=False
@@ -340,19 +327,37 @@ app.layout = html.Div([
                     html.Div([
                         html.Table([
                             html.Tr([
-                                html.Td([
-                                    html.Label('Визиты'),
-                                ]),
-                                html.Td([
-                                    html.Label(id='visits'),
-                                ]),
+                                html.Td([html.Label('Визиты'),
+                                         ]),
+                                html.Td([html.Label(id='visits'),
+                                         ]),
                             ]),
                             html.Tr([
-                                html.Td(html.Label('Количество уникальных посетителей за год')),
-                                html.Td(html.Label(site_1_df['Посетители'][0])),
+                                html.Td([html.Label('Посетители')
+                                         ]),
+                                html.Td([html.Label(id='users_site')
+                                         ]),
+                            ]),
+                            html.Tr([
+                                html.Td([html.Label('Отказы (Доля визитов, где один просмотр менее 15 сек.)')
+                                         ]),
+                                html.Td([html.Label(id='bounceRate')
+                                         ]),
+                            ]),
+                            html.Tr([
+                                html.Td([html.Label('Глубина просмотра')
+                                         ]),
+                                html.Td([html.Label(id='pageDepth')
+                                         ]),
+                            ]),
+                            html.Tr([
+                                html.Td([html.Label('Время на сайте')
+                                         ]),
+                                html.Td([html.Label(id='avgVisitDurSec')
+                                         ]),
                             ]),
                         ], className='table'),
-                    ], style=dict(width='50%')),
+                    ], style=dict(width='30%')),
                     html.Br(),
                     html.Hr(),
                     html.H3('Рейтинг посещаемости разделов сайта за год'),
@@ -408,6 +413,10 @@ def modify_legend(on):
     Output('table_top_etsp', 'data'),
     Output('table_top_sue', 'data'),
     Output('visits', 'children'),
+    Output('users_site', 'children'),
+    Output('bounceRate', 'children'),
+    Output('pageDepth', 'children'),
+    Output('avgVisitDurSec', 'children'),
     [Input('period_choice', 'start_date'),
      Input('period_choice', 'end_date'),
      Input('month_choice', 'value'),
@@ -435,6 +444,11 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         osp_filtered_df = osp_df[osp_df['month_open'] == int(choosen_month)]
         sue_avaria_filtered_df = sue_avaria_df[sue_avaria_df['month_open'] == int(choosen_month)]
 
+        start_date_metrika = ld.GetMonthPeriod(ld.current_year, choosen_month)[0]
+        end_date_metrika = ld.GetMonthPeriod(ld.current_year, choosen_month)[1]
+
+        filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
+
     elif choice_type_period == 'p':
         period_choice = False
         week_choice = True
@@ -457,11 +471,16 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         sue_avaria_filtered_df = sue_avaria_df[(sue_avaria_df['Дата обращения'] >= start_date_user) &
                                                (sue_avaria_df['Дата обращения'] <= end_date_user)]
 
+        start_date_metrika = start_date_user
+        end_date_metrika = end_date_user
+
+        filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
+
     else:
         period_choice = True
         week_choice = False
         month_choice = True
-        lw.log_writer(f'User choice "week = {choosen_week} ({ld.GetPeriod(ld.current_year,choosen_week)})"')
+        lw.log_writer(f'User choice "week = {choosen_week} ({ld.GetPeriod(ld.current_year, choosen_week)})"')
 
         if int(choosen_week) > 1:
             etsp_prev_filt_df = etsp_df[etsp_df['week_open'] == (int(choosen_week) - 1)]
@@ -477,6 +496,11 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         osp_filtered_df = osp_df[osp_df['week_open'] == int(choosen_week)]
         sue_avaria_filtered_df = sue_avaria_df[sue_avaria_df['week_open'] == int(choosen_week)]
 
+        start_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[0]
+        end_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[1]
+
+        filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
+
     etsp_count_tasks = etsp_filtered_df['count_task'].sum()
     sue_count_tasks = sue_filtered_df['count_task'].sum()
     osp_count_tasks = osp_filtered_df['count_task'].sum()
@@ -489,11 +513,11 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
     sue_avg_time = ld.CountMeanTime(sue_filtered_df)
     osp_avg_time = ld.CountMeanTime(osp_filtered_df)
 
-    start_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[0]
-    end_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[1]
-
-    filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
-    visits = int(filtered_metrika_df['ym:s:visits'])
+    visits = int(filtered_metrika_df['visits'][0])
+    users = int(filtered_metrika_df['users'][0])
+    bounceRate = ''.join([str(round(filtered_metrika_df['bounceRate'][0], 2)), "%"])
+    pageDepth = round(filtered_metrika_df['pageDepth'][0], 2)
+    avgVisitDurSec = str(dt.timedelta(seconds=round(filtered_metrika_df['avgVisitDurationSeconds'][0], 0)))[2:]
 
     fig_support = go.Figure(go.Bar(y=[etsp_count_tasks, sue_count_tasks, osp_count_tasks],
                                    x=['ЕЦП', 'СУЭ', 'ОСП'],
@@ -570,7 +594,7 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
                 style_users, etsp_avg_time, sue_avg_time, osp_avg_time, fig, sue_avaria_filtered_df.to_dict('records'),
                 style_data, top_user_etsp_filtered_df.to_dict('records'), top_user_sue_filtered_df.to_dict('records'),
-                visits)
+                visits, users, bounceRate, pageDepth, avgVisitDurSec)
     else:
         style_data = dict(width='20%', backgroundColor='#c4fbdb')
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
@@ -579,7 +603,7 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
                   'Фактическое время': '-', 'Пользователь': '-', 'timedelta': '-', 'Отдел': '-', 'month_open': '-',
                   'month_solved': '-', 'week_open': '-', 'week_solved': '-', 'count_task': '-', 'Дата обращения': '-',
                   'finish_date': '-'}], style_data, top_user_etsp_filtered_df.to_dict('records'),
-                top_user_sue_filtered_df.to_dict('records'), visits)
+                top_user_sue_filtered_df.to_dict('records'), visits, users, bounceRate, pageDepth, avgVisitDurSec)
 
 
 if __name__ == "__main__":
