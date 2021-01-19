@@ -1,11 +1,12 @@
 import requests
 import pandas as pd
 import load_cfg as cfg
-import load_data as ld
+# import load_data as ld
 import log_writer as lw
 
-start_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[0]
-end_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
+
+# start_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[0]
+# end_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
 
 
 def get_site_info(start_date, end_date):
@@ -21,22 +22,30 @@ def get_site_info(start_date, end_date):
     }
 
     response = requests.get('https://api-metrika.yandex.net/stat/v1/data', params=sources_sites, headers=headers)
-    print(response.status_code)
     lw.log_writer(f"server response code {response.status_code}")
 
     metrika_data = response.json()
 
-    list_of_dicts = []
-    dimensions_list = metrika_data['query']['dimensions']
-    metrics_list = metrika_data['query']['metrics']
-    for data_item in metrika_data['data']:
-        d = {}
-        for i, dimension in enumerate(data_item['dimensions']):
-            d[dimensions_list[i]] = dimension['name']
-        for i, metric in enumerate(data_item['metrics']):
-            d[metrics_list[i]] = metric
-        list_of_dicts.append(d)
+    if response.status_code != 200 or metrika_data['total_rows'] == 0:
+        metrika_df = pd.DataFrame(columns=['startURL', 'Level1', 'Level2', 'Level3', 'Level4', 'visits', 'users',
+                                           'bounceRate', 'pageDepth', 'avgVisitDurationSeconds'])
+        metrika_df.loc[0] = '-', '-', '-', '-', '-', 0, 0, 0, 0, 0
 
-    metrika_df = pd.DataFrame(list_of_dicts)
+    else:
+        list_of_dicts = []
+        dimensions_list = metrika_data['query']['dimensions']
+        metrics_list = metrika_data['query']['metrics']
+        for data_item in metrika_data['data']:
+            d = {}
+            for i, dimension in enumerate(data_item['dimensions']):
+                d[dimensions_list[i]] = dimension['name']
+            for i, metric in enumerate(data_item['metrics']):
+                d[metrics_list[i]] = metric
+            list_of_dicts.append(d)
+
+        metrika_df = pd.DataFrame(list_of_dicts)
+        metrika_df.columns = ['startURL', 'Level1', 'Level2', 'Level3', 'Level4', 'visits', 'users', 'bounceRate',
+                              'pageDepth',
+                              'avgVisitDurationSeconds']
 
     return metrika_df

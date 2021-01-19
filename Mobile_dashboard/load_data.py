@@ -1,4 +1,5 @@
 import pandas as pd
+import calendar
 from datetime import date, timedelta
 
 current_month = date.today().month
@@ -328,3 +329,12 @@ def GetPeriodForSite(year, week):
     period = [start_day_of_week.strftime("%Y-%m-%d"), end_day_of_week.strftime("%Y-%m-%d")]
 
     return period
+
+
+def GetMonthPeriod(year, month_num):
+    num_days = calendar.monthrange(year, month_num)[1]
+
+    start_date = f'{year}-0{month_num}-01'
+    end_date = f'{year}-0{month_num}-{num_days}'
+
+    return [start_date, end_date]
