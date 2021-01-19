@@ -1,5 +1,5 @@
-import calendar
-import locale
+# import calendar
+# import locale
 from datetime import date
 
 import dash
@@ -12,13 +12,17 @@ import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 
 import load_data as ld
+import site_info as si
+import log_writer as lw
 
-locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
+
+# locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
 
 def load_data():
     df_load = pd.read_excel('data.xlsx', sheet_name='Данные')
     df_load.set_index(df_load.columns[0], inplace=True)
+
     return df_load
 
 
@@ -74,11 +78,13 @@ def load_data_eb():
 
 el_b_df = load_data_eb()
 fig_site_top3 = go.Figure(data=[go.Pie(labels=el_b_df['site_page'], values=el_b_df['Глубина просмотра'], hole=.3)])
-fig_site_top3.update_layout(title_text="Глубина просмотра раздела Электронный бюджет",
+fig_site_top3.update_layout(title_text='Глубина просмотра раздела "Электронный бюджет"',
                             autosize=True,
                             piecolorway=['#26205b', '#3257af', '#c8abd5', '#f9c5d8', '#b83e74', '#8d0837', '#9456ef'],
                             paper_bgcolor='#ebecf1',
                             plot_bgcolor='#ebecf1')
+
+# ------------------------------------- start load data block ------------------------------------------------------
 
 etsp_df = ld.LoadEtspData()
 top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum()
@@ -98,6 +104,12 @@ sue_avaria_df.columns = ['Дата обращения', 'Тип', 'Номер', 
                          'Пользователь', 'timedelta', 'Отдел', 'month_open', 'month_solved', 'week_open', 'week_solved',
                          'count_task', 'Дата', 'finish_date']
 
+date1 = ld.GetPeriodForSite(ld.current_year, ld.current_week)[0]
+date2 = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
+metrika_df = si.get_site_info(date1, date2)
+# ------------------------------------- end load data block ------------------------------------------------------
+
+
 colors_site_top = ['#003b32', '#40817a', '#afbaa3', '#d0d0b8', '#037c87', '#7cbdc9']
 
 fig_site_top = go.Figure([go.Bar(x=site_top_df['Визиты'],
@@ -106,7 +118,7 @@ fig_site_top = go.Figure([go.Bar(x=site_top_df['Визиты'],
                                  marker_color=colors_site_top,
                                  text=site_top_df['Визиты'])])
 fig_site_top.update_traces(textposition='auto')
-fig_site_top.update_layout(title_text="Количество визитов по разделам сайта", paper_bgcolor='#ebecf1',
+fig_site_top.update_layout(title_text="Визиты", paper_bgcolor='#ebecf1',
                            plot_bgcolor='#ebecf1')
 
 labels = list(site_label1['Название'].head(5))
@@ -120,7 +132,7 @@ fig_site_top2 = go.Figure(data=[go.Pie(labels=labels,
                                        marker_colors=colors_site,
                                        hole=.2)])
 
-fig_site_top2.update_layout(title_text="Количество посетителей", paper_bgcolor='#ebecf1', plot_bgcolor='#ebecf1')
+fig_site_top2.update_layout(title_text="Посетители", paper_bgcolor='#ebecf1', plot_bgcolor='#ebecf1')
 
 external_stylesheets = ['assets/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, title='Отдел сопровождения пользователей')
@@ -128,15 +140,22 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets, title='От
 tab_selected_style = dict(backgroundColor='#ebecf1', fontWeight='bold')
 
 choice_type = [
-    dict(label='Месяц', value='m'),
     dict(label='Неделя', value='w'),
+    dict(label='Месяц', value='m'),
     dict(label='Произвольный период', value='p')
 ]
 
-months = list(calendar.month_name)
+# months = list(calendar.month_name)
+months = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь',
+          'Декабрь']
 d_month = [{"label": months[i], "value": i} for i in range(1, 13)]
 
 d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "value": i} for i in range(1, 53)]
+
+date1 = ld.GetPeriod(ld.current_year, ld.current_week)[:10]
+date2 = ld.GetPeriod(ld.current_year, ld.current_week)[13:]
+
+print(date1, date2)
 
 app.layout = html.Div([
     html.Div([
@@ -151,7 +170,7 @@ app.layout = html.Div([
                                              searchable=False,
                                              clearable=False,
                                              optionHeight=50,
-                                             value='m',
+                                             value='w',
                                              disabled=False)
                                 ], className='wrapper-dropdown-3', style=dict(width='295px', display='block'))],
                      className='bblock'),  # choice period dropdown
@@ -174,10 +193,11 @@ app.layout = html.Div([
                  className='bblock'),  # Week_choice dropdown
         html.Div([html.Div([dcc.DatePickerRange(id='period_choice',
                                                 display_format='DD-MM-YYYY',
-                                                min_date_allowed=date(2020, 1, 1),
-                                                max_date_allowed=date(2021, 12, 31),
+                                                min_date_allowed=date(2019, 9, 1),
+                                                max_date_allowed=date(2020, 12, 31),
                                                 start_date=date(2020, 12, 10),
                                                 end_date=date(2020, 12, 18),
+                                                updatemode='bothdates',
                                                 style=dict(background='#b1d5fa'),
                                                 clearable=False
                                                 )])], className='bblock',
@@ -249,7 +269,7 @@ app.layout = html.Div([
                         html.Div([dcc.Graph(id='support_figure')], className='line_block', style=dict(width='46%')),
                     ]),
                     html.Br(),
-                    html.Div([html.H3('ТОП-5 пользователей направивших обращения (по техподдержкам)')],
+                    html.Div([html.H3('ТОП-5 пользователей')],
                              style={'color': '#222780', 'font-type': 'bold'}),
                     html.Div([
                         html.Div([html.H4('ЕЦП')], className='line_block', style=dict(width='46%')),  # html div
@@ -264,8 +284,9 @@ app.layout = html.Div([
                                                  cell_selectable=False,
                                                  style_data={'width': '50px', 'font-size': ' 1.3em'},
                                                  style_cell=dict(textAlign='center'),
-                                                 style_cell_conditional=[{'if': {'column_id': 'Пользователь'},
-                                                                          'textAlign': 'left'}]
+                                                 style_cell_conditional=[
+                                                     {'if': {'column_id': 'Пользователь'},
+                                                      'textAlign': 'left'}]
                                                  )], className='line_block', style=dict(width='46%')),
                         html.Div([
                             dash_table.DataTable(id='table_top_sue',
@@ -275,8 +296,9 @@ app.layout = html.Div([
                                                  cell_selectable=False,
                                                  style_data={'width': '50px', 'font-size': ' 1.3em'},
                                                  style_cell=dict(textAlign='center'),
-                                                 style_cell_conditional=[{'if': {'column_id': 'Пользователь'},
-                                                                          'textAlign': 'left'}]
+                                                 style_cell_conditional=[
+                                                     {'if': {'column_id': 'Пользователь'},
+                                                      'textAlign': 'left'}]
                                                  )], className='line_block', style=dict(width='46%')),
                     ]),
                 ], selected_style=tab_selected_style),  # tab user
@@ -319,10 +341,10 @@ app.layout = html.Div([
                         html.Table([
                             html.Tr([
                                 html.Td([
-                                    html.Label('Суммарное количество визитов за год'),
+                                    html.Label('Визиты'),
                                 ]),
                                 html.Td([
-                                    html.Label(site_1_df['Визиты'][0]),
+                                    html.Label(id='visits'),
                                 ]),
                             ]),
                             html.Tr([
@@ -330,7 +352,7 @@ app.layout = html.Div([
                                 html.Td(html.Label(site_1_df['Посетители'][0])),
                             ]),
                         ], className='table'),
-                    ]),
+                    ], style=dict(width='50%')),
                     html.Br(),
                     html.Hr(),
                     html.H3('Рейтинг посещаемости разделов сайта за год'),
@@ -385,6 +407,7 @@ def modify_legend(on):
     Output('sue_avaria', 'style_data'),
     Output('table_top_etsp', 'data'),
     Output('table_top_sue', 'data'),
+    Output('visits', 'children'),
     [Input('period_choice', 'start_date'),
      Input('period_choice', 'end_date'),
      Input('month_choice', 'value'),
@@ -396,6 +419,7 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         period_choice = True
         week_choice = True
         month_choice = False
+        lw.log_writer(f'User choice "month = {choosen_month}"')
 
         if int(choosen_month) > 1:
             etsp_prev_filt_df = etsp_df[etsp_df['month_open'] == (int(choosen_month) - 1)]
@@ -415,6 +439,7 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         period_choice = False
         week_choice = True
         month_choice = True
+        lw.log_writer(f'User choice "range period start = {start_date_user}, end = {end_date_user}"')
 
         if int(start_date_user[5:7]) > 1:
             etsp_prev_filt_df = etsp_df[etsp_df['month_open'] == (int(start_date_user[5:7]) - 1)]
@@ -436,6 +461,7 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         period_choice = True
         week_choice = False
         month_choice = True
+        lw.log_writer(f'User choice "week = {choosen_week} ({ld.GetPeriod(ld.current_year,choosen_week)})"')
 
         if int(choosen_week) > 1:
             etsp_prev_filt_df = etsp_df[etsp_df['week_open'] == (int(choosen_week) - 1)]
@@ -462,6 +488,12 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
     etsp_avg_time = ld.CountMeanTime(etsp_filtered_df)
     sue_avg_time = ld.CountMeanTime(sue_filtered_df)
     osp_avg_time = ld.CountMeanTime(osp_filtered_df)
+
+    start_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[0]
+    end_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[1]
+
+    filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
+    visits = int(filtered_metrika_df['ym:s:visits'])
 
     fig_support = go.Figure(go.Bar(y=[etsp_count_tasks, sue_count_tasks, osp_count_tasks],
                                    x=['ЕЦП', 'СУЭ', 'ОСП'],
@@ -537,7 +569,8 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         style_data = dict(width='20%', backgroundColor='#ff847c')
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
                 style_users, etsp_avg_time, sue_avg_time, osp_avg_time, fig, sue_avaria_filtered_df.to_dict('records'),
-                style_data, top_user_etsp_filtered_df.to_dict('records'), top_user_sue_filtered_df.to_dict('records'))
+                style_data, top_user_etsp_filtered_df.to_dict('records'), top_user_sue_filtered_df.to_dict('records'),
+                visits)
     else:
         style_data = dict(width='20%', backgroundColor='#c4fbdb')
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
@@ -546,8 +579,8 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
                   'Фактическое время': '-', 'Пользователь': '-', 'timedelta': '-', 'Отдел': '-', 'month_open': '-',
                   'month_solved': '-', 'week_open': '-', 'week_solved': '-', 'count_task': '-', 'Дата обращения': '-',
                   'finish_date': '-'}], style_data, top_user_etsp_filtered_df.to_dict('records'),
-                top_user_sue_filtered_df.to_dict('records'))
+                top_user_sue_filtered_df.to_dict('records'), visits)
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.1.4', port=8000)
+    app.run_server(debug=True, host='192.168.1.4', port=8600)
