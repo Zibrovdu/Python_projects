@@ -176,6 +176,8 @@ def GetIntent(df):
             mask = temp_df['text'].str.contains(i)
             temp_df.loc[mask, 'intent'] = item
 
+    # total_df = pd.DataFrame(columns=['num', 'text', 'intent'])
+
     df3 = temp_df[temp_df.loc[:, 'intent'] == '1С ЭБ']
     mask = df3['text'].str.contains('работает')
     df3.loc[mask, 'intent'] = 'не работает (1С ЭБ)'
@@ -278,6 +280,14 @@ def CountMeanTime(filtered_df):
 
 
 def LoadInfSystemsData():
+    # df = pd.read_excel('data.xlsx', sheet_name='Работа в ИС', usecols='A,D:O')
+    # df.dropna(axis=0, inplace=True)
+    # df['Unnamed: 0'] = df['Unnamed: 0'].astype(int)
+    # df = df.T
+    # new_header = df.iloc[0]  # grab the first row for the header
+    # df = df[1:]  # take the data less the header row
+    # df.columns = new_header  # set the header row as the df header
+
     df = pd.read_excel('assets/dostup.xlsx', sheet_name='Лист5', index_col=0)
     df.drop('Номер отдела', axis=1, inplace=True)
 
@@ -297,6 +307,24 @@ def GetPeriod(year, week):
     start_day_of_week = first_week_day + dlt_start
     end_day_of_week = first_week_day + dlt_end
 
-    period = ' - '.join([start_day_of_week.strftime("%d/%m/%Y"), end_day_of_week.strftime("%d/%m/%Y")])
+    period = ' - '.join([start_day_of_week.strftime("%d-%m-%Y"), end_day_of_week.strftime("%d-%m-%Y")])
+
+    return period
+
+
+def GetPeriodForSite(year, week):
+    first_year_day = date(year, 1, 1)
+    if first_year_day.weekday() > 3:
+        first_week_day = first_year_day + timedelta(7 - first_year_day.weekday())
+    else:
+        first_week_day = first_year_day - timedelta(first_year_day.weekday())
+
+    dlt_start = timedelta(days=(week - 1) * 7)
+    dlt_end = timedelta(days=(((week - 1) * 7) + 6))
+
+    start_day_of_week = first_week_day + dlt_start
+    end_day_of_week = first_week_day + dlt_end
+
+    period = [start_day_of_week.strftime("%Y-%m-%d"), end_day_of_week.strftime("%Y-%m-%d")]
 
     return period
