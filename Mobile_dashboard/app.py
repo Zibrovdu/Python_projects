@@ -77,10 +77,8 @@ fig_site_top3.update_layout(title_text='Глубина просмотра раз
 # ------------------------------------- start load data block ------------------------------------------------------
 
 etsp_df = ld.LoadEtspData()
-top_user_etsp = pd.DataFrame(etsp_df.groupby('Имя затронутого пользователя')['count_task'].sum()
-                             .sort_values(ascending=False).head()
-                             .reset_index()).rename(columns={'Имя затронутого пользователя': 'Пользователь',
-                                                             'count_task': 'Обращения'})
+top_user_etsp = pd.DataFrame(etsp_df.groupby('user')['count_task'].sum().sort_values(ascending=False).head()
+                             .reset_index()).rename(columns={'user': 'Пользователь', 'count_task': 'Обращения'})
 sue_df = ld.LoadSueData()
 top_user_sue = pd.DataFrame(sue_df.groupby('user')['count_task'].sum()
                             .sort_values(ascending=False).head()
@@ -141,8 +139,6 @@ d_month = [{"label": months[i], "value": i} for i in range(1, 13)]
 
 d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "value": i} for i in range(1, 53)]
 
-date1 = ld.GetPeriod(ld.current_year, ld.current_week)[:10]
-date2 = ld.GetPeriod(ld.current_year, ld.current_week)[13:]
 
 app.layout = html.Div([
     html.Div([
@@ -266,6 +262,7 @@ app.layout = html.Div([
                         html.Div([
                             dash_table.DataTable(id='table_top_etsp',
                                                  columns=[{"name": i, "id": i} for i in top_user_etsp.columns],
+                                                 # data=top_user_etsp.to_dict('records'),
                                                  sort_action="native",
                                                  style_as_list_view=True,
                                                  cell_selectable=False,
@@ -278,6 +275,7 @@ app.layout = html.Div([
                         html.Div([
                             dash_table.DataTable(id='table_top_sue',
                                                  columns=[{"name": i, "id": i} for i in top_user_sue.columns],
+                                                 # data=top_user_sue.to_dict('records'),
                                                  sort_action="native",
                                                  style_as_list_view=True,
                                                  cell_selectable=False,
@@ -324,43 +322,36 @@ app.layout = html.Div([
                 ], selected_style=tab_selected_style),  # tab tech
                 dcc.Tab(label='Сайт', value='s', children=[
                     html.Br(),
-                    html.Div([
-                        html.Table([
-                            html.Tr([
-                                html.Td([html.Label('Визиты'),
-                                         ]),
-                                html.Td([html.Label(id='visits'),
-                                         ]),
-                            ]),
-                            html.Tr([
-                                html.Td([html.Label('Посетители')
-                                         ]),
-                                html.Td([html.Label(id='users_site')
-                                         ]),
-                            ]),
-                            html.Tr([
-                                html.Td([html.Label('Отказы (Доля визитов, где один просмотр менее 15 сек.)')
-                                         ]),
-                                html.Td([html.Label(id='bounceRate')
-                                         ]),
-                            ]),
-                            html.Tr([
-                                html.Td([html.Label('Глубина просмотра')
-                                         ]),
-                                html.Td([html.Label(id='pageDepth')
-                                         ]),
-                            ]),
-                            html.Tr([
-                                html.Td([html.Label('Время на сайте')
-                                         ]),
-                                html.Td([html.Label(id='avgVisitDurSec')
-                                         ]),
-                            ]),
-                        ], className='table'),
-                    ], style=dict(width='30%')),
-                    html.Br(),
-                    html.Hr(),
-                    html.H3('Рейтинг посещаемости разделов сайта за год'),
+                    html.Div([dash_table.DataTable(id='site_stat',
+                                                   columns=[{"name": i, "id": i} for i in ['Визиты', 'Посетители',
+                                                                                           'Просмотры', 'Отказы',
+                                                                                           'Глубина просмотра',
+                                                                                           'Время на сайте']],
+                                                   style_table={'height': '150px'},
+                                                   fixed_rows={'headers': True},
+                                                   style_as_list_view=True,
+                                                   cell_selectable=False,
+                                                   tooltip_data=[
+                                                       {
+                                                           'Визиты': 'Суммарное количество визитов.',
+                                                           'Посетители': 'Количество уникальных посетителей.',
+                                                           'Просмотры': 'Число просмотров страниц на сайте за '
+                                                                        'выбранный период.',
+                                                           'Отказы': 'Доля визитов, в рамках которых состоялся лишь '
+                                                                     'один просмотр страницы, продолжавшийся менее 15'
+                                                                     ' секунд.',
+                                                           'Глубина просмотра': 'Количество страниц, просмотренных '
+                                                                                'посетителем во время визита.',
+                                                           'Время на сайте': 'Средняя продолжительность визита в '
+                                                                             'минутах и секундах. '
+                                                       }],
+                                                   tooltip_duration=None,
+                                                   style_cell=dict(textAlign='center',
+                                                                   overflow='hidden',
+                                                                   textOverflow='ellipsis',
+                                                                   maxWidth=0))],
+                             style=dict(width='62%', padding='0 5%')),
+                    html.Div([html.H3('Рейтинг посещаемости разделов сайта за год', style=dict(padding='20px'))]),
                     html.Div([dcc.Graph(id='site_top_fig', figure=fig_site_top)]),
                     html.Div([dcc.Graph(id='site_top_fig2', figure=fig_site_top2)]),
                     html.Div([dcc.Graph(id='site_top_fig3', figure=fig_site_top3)]),
@@ -412,11 +403,7 @@ def modify_legend(on):
     Output('sue_avaria', 'style_data'),
     Output('table_top_etsp', 'data'),
     Output('table_top_sue', 'data'),
-    Output('visits', 'children'),
-    Output('users_site', 'children'),
-    Output('bounceRate', 'children'),
-    Output('pageDepth', 'children'),
-    Output('avgVisitDurSec', 'children'),
+    Output('site_stat', 'data'),
     [Input('period_choice', 'start_date'),
      Input('period_choice', 'end_date'),
      Input('month_choice', 'value'),
@@ -513,10 +500,13 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
     sue_avg_time = ld.CountMeanTime(sue_filtered_df)
     osp_avg_time = ld.CountMeanTime(osp_filtered_df)
 
-    visits = int(filtered_metrika_df['visits'][0])
-    users = int(filtered_metrika_df['users'][0])
+    print(filtered_metrika_df.columns)
+
+    visits = str(int(filtered_metrika_df['visits'][0]))
+    users = str(int(filtered_metrika_df['users'][0]))
+    pageviews = str(int(filtered_metrika_df['pageviews'][0]))
     bounceRate = ''.join([str(round(filtered_metrika_df['bounceRate'][0], 2)), "%"])
-    pageDepth = round(filtered_metrika_df['pageDepth'][0], 2)
+    pageDepth = str(round(filtered_metrika_df['pageDepth'][0], 2))
     avgVisitDurSec = str(dt.timedelta(seconds=round(filtered_metrika_df['avgVisitDurationSeconds'][0], 0)))[2:]
 
     fig_support = go.Figure(go.Bar(y=[etsp_count_tasks, sue_count_tasks, osp_count_tasks],
@@ -554,10 +544,10 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
 
     total_tasks = ''.join([str(total_curr_tasks), ' ( ', diff_tasks, ' )'])
 
-    total_curr_users = len(etsp_filtered_df['Имя затронутого пользователя'].unique()) + len(
-        sue_filtered_df['user'].unique()) + len(osp_filtered_df['Пользователь'].unique())
-    total_prev_users = len(etsp_prev_filt_df['Имя затронутого пользователя'].unique()) + len(
-        sue_prev_filt_df['user'].unique()) + len(osp_prev_filt_df['Пользователь'].unique())
+    total_curr_users = len(etsp_filtered_df['user'].unique()) + len(
+        sue_filtered_df['user'].unique()) + len(osp_filtered_df['user'].unique())
+    total_prev_users = len(etsp_prev_filt_df['user'].unique()) + len(
+        sue_prev_filt_df['user'].unique()) + len(osp_prev_filt_df['user'].unique())
     diff_users = total_curr_users - total_prev_users
 
     if diff_users > 0:
@@ -582,9 +572,9 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
 
     fig.update_layout(paper_bgcolor='#ebecf1', showlegend=True)
 
-    top_user_etsp_filtered_df = pd.DataFrame(etsp_filtered_df.groupby('Имя затронутого пользователя')['count_task']
+    top_user_etsp_filtered_df = pd.DataFrame(etsp_filtered_df.groupby('user')['count_task']
                                              .sum().sort_values(ascending=False).head().reset_index()).rename(
-        columns={'Имя затронутого пользователя': 'Пользователь', 'count_task': 'Обращения'})
+        columns={'user': 'Пользователь', 'count_task': 'Обращения'})
 
     top_user_sue_filtered_df = pd.DataFrame(sue_filtered_df.groupby('user')['count_task'].sum().sort_values(
         ascending=False).head().reset_index()).rename(columns={'user': 'Пользователь', 'count_task': 'Обращения'})
@@ -594,7 +584,8 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
                 style_users, etsp_avg_time, sue_avg_time, osp_avg_time, fig, sue_avaria_filtered_df.to_dict('records'),
                 style_data, top_user_etsp_filtered_df.to_dict('records'), top_user_sue_filtered_df.to_dict('records'),
-                visits, users, bounceRate, pageDepth, avgVisitDurSec)
+                [{'Визиты': visits, 'Посетители': users, 'Просмотры': pageviews, 'Отказы': bounceRate,
+                  'Глубина просмотра': pageDepth, 'Время на сайте': avgVisitDurSec}])
     else:
         style_data = dict(width='20%', backgroundColor='#c4fbdb')
         return (period_choice, month_choice, week_choice, fig_support, total_tasks, style_tasks, total_users,
@@ -603,8 +594,11 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
                   'Фактическое время': '-', 'Пользователь': '-', 'timedelta': '-', 'Отдел': '-', 'month_open': '-',
                   'month_solved': '-', 'week_open': '-', 'week_solved': '-', 'count_task': '-', 'Дата обращения': '-',
                   'finish_date': '-'}], style_data, top_user_etsp_filtered_df.to_dict('records'),
-                top_user_sue_filtered_df.to_dict('records'), visits, users, bounceRate, pageDepth, avgVisitDurSec)
+                top_user_sue_filtered_df.to_dict('records'), [{'Визиты': visits, 'Посетители': users,
+                                                               'Просмотры': pageviews, 'Отказы': bounceRate,
+                                                               'Глубина просмотра': pageDepth,
+                                                               'Время на сайте': avgVisitDurSec}])
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.1.4', port=8600)
+    app.run_server(debug=True, host='192.168.1.4', port=8500)

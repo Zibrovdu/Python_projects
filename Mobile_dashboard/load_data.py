@@ -1,6 +1,12 @@
-import pandas as pd
 import calendar
 from datetime import date, timedelta
+
+import pandas as pd
+import load_cfg as cfg
+from sqlalchemy import create_engine
+
+engine = create_engine(f'{cfg.db_dialect}://{cfg.db_username}:{cfg.db_password}@{cfg.db_host}:'
+                       f'{cfg.db_port}/{cfg.db_name}')
 
 current_month = date.today().month
 current_day = date.today().day
@@ -13,68 +19,24 @@ end_year = (date.today() + timedelta(days=7)).year
 
 
 def LoadEtspData():
-    df = pd.read_excel('assets/rt.xls', usecols='A,B,D,E,G')
-    df['Дата решения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
-    df['Дата/время регистрации'] = pd.to_datetime(df['Дата/время регистрации'])
-    df['Дата решения'] = pd.to_datetime(df['Дата решения'])
-    df['timedelta'] = df['Дата решения'] - df['Дата/время регистрации']
-
-    empl_df = pd.read_excel('assets/employes.xlsx', usecols='B,C')
-    df = df.merge(empl_df, how='left', left_on=['Имя затронутого пользователя'], right_on=['фио'])
-    del empl_df
-    df.drop('фио', axis=1, inplace=True)
-
-    df['month_open'] = df['Дата/время регистрации'].dt.month
-    df['month_solved'] = df['Дата решения'].dt.month
-    df['week_open'] = df['Дата/время регистрации'].dt.isocalendar()['week']
-    df['week_solved'] = df['Дата решения'].dt.isocalendar()['week']
-    df['count_task'] = 1
-    df['start_date'] = df['Дата/время регистрации'].dt.date.apply(lambda x: str(x))
-    df['finish_date'] = df['Дата решения'].dt.date.apply(lambda x: str(x))
+    df = pd.read_sql('''select * from etsp.etsp_data''', con=engine)
+    df.timedelta = pd.to_timedelta(df.timedelta)
 
     return df
 
 
 def LoadSueData():
-    df = pd.read_excel('assets/exportSD_current.xlsx', usecols='H,I,J,O,S,U,AH')
-    df.columns = ['registration_date', 'status', 'event_number', 'title', 'plan_time', 'fact_time', 'user']
-    df['fact_time'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00', inplace=True)
-    df['title'].fillna(' ', inplace=True)
-    df['fact_time'] = pd.to_datetime(df['fact_time'])
-    df['timedelta'] = df['fact_time'] - df['registration_date']
-
-    empl_df = pd.read_excel('assets/employes.xlsx', usecols='B,C')
-    df = df.merge(empl_df, how='left', left_on=['user'], right_on=['фио'])
-    del empl_df
-    df.drop('фио', axis=1, inplace=True)
-
-    df['month_open'] = df['registration_date'].dt.month
-    df['month_solved'] = df['fact_time'].dt.month
-    df['week_open'] = df['registration_date'].dt.isocalendar()['week']
-    df['week_solved'] = df['fact_time'].dt.isocalendar()['week']
-    df['count_task'] = 1
-    df['start_date'] = df['registration_date'].dt.date.apply(lambda x: str(x))
-    df['finish_date'] = df['fact_time'].dt.date.apply(lambda x: str(x))
+    df = pd.read_sql('''select * from sue.sue_data''', con=engine)
+    df.timedelta = pd.to_timedelta(df.timedelta)
 
     return df
 
 
 def LoadOspData():
-    osp_df = pd.read_excel('assets/osp.xlsx', usecols='B,D,G,S,AH')
-    osp_df['Фактическое время выполнения'].fillna(f'{current_year}-{current_month}-{current_day} 00:00:00',
-                                                  inplace=True)
-    osp_df['Описание'].fillna(' ', inplace=True)
-    osp_df['timedelta'] = osp_df['Фактическое время выполнения'] - osp_df['Дата регистрации']
-    osp_df['month_open'] = osp_df['Дата регистрации'].dt.month
-    osp_df['month_solved'] = osp_df['Фактическое время выполнения'].dt.month
-    osp_df['week_open'] = osp_df['Дата регистрации'].dt.isocalendar()['week']
-    osp_df['week_solved'] = osp_df['Фактическое время выполнения'].dt.isocalendar()['week']
-    osp_df['count_task'] = 1
-    osp_df['start_date'] = osp_df['Дата регистрации'].dt.date.apply(lambda x: str(x))
-    osp_df['finish_date'] = osp_df['Фактическое время выполнения'].dt.date.apply(lambda x: str(x))
-    osp_df.rename(columns={'Вложенное подразделение 2': 'Отдел'}, inplace=True)
+    df = pd.read_sql('''select * from osp.osp_data''', con=engine)
+    df.timedelta = pd.to_timedelta(df.timedelta)
 
-    return osp_df
+    return df
 
 
 def GetTimeData(df):

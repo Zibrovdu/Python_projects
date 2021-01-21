@@ -1,18 +1,13 @@
 import requests
 import pandas as pd
 import load_cfg as cfg
-# import load_data as ld
 import log_writer as lw
-
-
-# start_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[0]
-# end_date = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
 
 
 def get_site_info(start_date, end_date):
     headers = {'Authorization': 'OAuth ' + cfg.token}
     sources_sites = {
-        'metrics': 'ym:s:visits,ym:s:users,ym:s:bounceRate,ym:s:pageDepth,ym:s:avgVisitDurationSeconds',
+        'metrics': 'ym:s:visits,ym:s:users,ym:s:pageviews,ym:s:bounceRate,ym:s:pageDepth,ym:s:avgVisitDurationSeconds',
         'dimensions': 'ym:s:startURL,ym:s:startURLPathLevel1,ym:s:startURLPathLevel2,ym:s:startURLPathLevel3,'
                       'ym:s:startURLPathLevel4',
         'date1': start_date,
@@ -28,8 +23,8 @@ def get_site_info(start_date, end_date):
 
     if response.status_code != 200 or metrika_data['total_rows'] == 0:
         metrika_df = pd.DataFrame(columns=['startURL', 'Level1', 'Level2', 'Level3', 'Level4', 'visits', 'users',
-                                           'bounceRate', 'pageDepth', 'avgVisitDurationSeconds'])
-        metrika_df.loc[0] = '-', '-', '-', '-', '-', 0, 0, 0, 0, 0
+                                           'pageviews', 'bounceRate', 'pageDepth', 'avgVisitDurationSeconds'])
+        metrika_df.loc[0] = '-', '-', '-', '-', 0, 0, 0, 0, 0, 0, 0
 
     else:
         list_of_dicts = []
@@ -44,8 +39,7 @@ def get_site_info(start_date, end_date):
             list_of_dicts.append(d)
 
         metrika_df = pd.DataFrame(list_of_dicts)
-        metrika_df.columns = ['startURL', 'Level1', 'Level2', 'Level3', 'Level4', 'visits', 'users', 'bounceRate',
-                              'pageDepth',
-                              'avgVisitDurationSeconds']
+        metrika_df.columns = ['startURL', 'Level1', 'Level2', 'Level3', 'Level4', 'visits', 'users', 'pageviews',
+                              'bounceRate', 'pageDepth', 'avgVisitDurationSeconds']
 
     return metrika_df
