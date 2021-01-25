@@ -1,21 +1,17 @@
 import calendar
+import configparser
 from datetime import date, timedelta
 
 import pandas as pd
-import load_cfg as cfg
 from sqlalchemy import create_engine
+import load_cfg as lc
 
-engine = create_engine(f'{cfg.db_dialect}://{cfg.db_username}:{cfg.db_password}@{cfg.db_host}:'
-                       f'{cfg.db_port}/{cfg.db_name}')
+engine = create_engine(f'{lc.db_dialect}://{lc.db_username}:{lc.db_password}@{lc.db_host}:{lc.db_port}/{lc.db_name}')
 
 current_month = date.today().month
 current_day = date.today().day
 current_year = date.today().year
 current_week = date.today().isocalendar()[1]
-
-end_day = (date.today() + timedelta(days=7)).day
-end_month = (date.today() + timedelta(days=7)).month
-end_year = (date.today() + timedelta(days=7)).year
 
 
 def LoadEtspData():
@@ -139,8 +135,6 @@ def GetIntent(df):
             mask = temp_df['text'].str.contains(i)
             temp_df.loc[mask, 'intent'] = item
 
-    # total_df = pd.DataFrame(columns=['num', 'text', 'intent'])
-
     df3 = temp_df[temp_df.loc[:, 'intent'] == '1С ЭБ']
     mask = df3['text'].str.contains('работает')
     df3.loc[mask, 'intent'] = 'не работает (1С ЭБ)'
@@ -243,21 +237,40 @@ def CountMeanTime(filtered_df):
 
 
 def LoadInfSystemsData():
-    # df = pd.read_excel('data.xlsx', sheet_name='Работа в ИС', usecols='A,D:O')
-    # df.dropna(axis=0, inplace=True)
-    # df['Unnamed: 0'] = df['Unnamed: 0'].astype(int)
-    # df = df.T
-    # new_header = df.iloc[0]  # grab the first row for the header
-    # df = df[1:]  # take the data less the header row
-    # df.columns = new_header  # set the header row as the df header
-
     df = pd.read_excel('assets/dostup.xlsx', sheet_name='Лист5', index_col=0)
     df.drop('Номер отдела', axis=1, inplace=True)
 
     return df
 
 
-def GetPeriod(year, week):
+def GetPeriod(year, week, output_format='n'):
+    """
+    Синтаксис:
+    GetPeriod(
+            year,
+            week,
+            output_format='n')
+
+    Описание:
+    Функция принимает на вход год и номер недели. Возвращает список или строку содержащие начальную и конечную
+    даты недели
+
+    Параметры
+    ----------
+    year:
+        год
+    week:
+        номер недели
+    output_format: string, default 'n'
+        Определяет формат вывода данных. Допустимые значения:
+        'n' - строка вида 'ДД-ММ-ГГГГ - ДД-ММ-ГГГГ'
+        's' - список вида ['ГГГГ-ММ-ДД', 'ГГГГ-ММ-ДД']
+        При указании другого параметра вернется список ['1900-01-01', '1900-01-01']
+
+    Returns
+    -------
+    string or list of strings
+    """
     first_year_day = date(year, 1, 1)
     if first_year_day.weekday() > 3:
         first_week_day = first_year_day + timedelta(7 - first_year_day.weekday())
@@ -270,33 +283,71 @@ def GetPeriod(year, week):
     start_day_of_week = first_week_day + dlt_start
     end_day_of_week = first_week_day + dlt_end
 
-    period = ' - '.join([start_day_of_week.strftime("%d-%m-%Y"), end_day_of_week.strftime("%d-%m-%Y")])
-
-    return period
-
-
-def GetPeriodForSite(year, week):
-    first_year_day = date(year, 1, 1)
-    if first_year_day.weekday() > 3:
-        first_week_day = first_year_day + timedelta(7 - first_year_day.weekday())
+    if output_format == 'n':
+        period = ' - '.join([start_day_of_week.strftime("%d-%m-%Y"), end_day_of_week.strftime("%d-%m-%Y")])
+    elif output_format == 's':
+        period = [start_day_of_week.strftime("%Y-%m-%d"), end_day_of_week.strftime("%Y-%m-%d")]
     else:
-        first_week_day = first_year_day - timedelta(first_year_day.weekday())
-
-    dlt_start = timedelta(days=(week - 1) * 7)
-    dlt_end = timedelta(days=(((week - 1) * 7) + 6))
-
-    start_day_of_week = first_week_day + dlt_start
-    end_day_of_week = first_week_day + dlt_end
-
-    period = [start_day_of_week.strftime("%Y-%m-%d"), end_day_of_week.strftime("%Y-%m-%d")]
+        period = ['1900-01-01', '1900-01-01']
 
     return period
 
 
 def GetMonthPeriod(year, month_num):
+    """
+    Функция принимает на вход год и номер месяца. Возвращает списко содержащий первую и последнюю даты месяца
+    в виде строки формата 'ГГГГ-ММ-ДД'
+    """
     num_days = calendar.monthrange(year, month_num)[1]
 
     start_date = f'{year}-0{month_num}-01'
     end_date = f'{year}-0{month_num}-{num_days}'
 
     return [start_date, end_date]
+
+
+def GetWeeks(start_week, start_year, end_week, end_year):
+    """
+    Функция принимает на вход период в виде 4-х параметров (номер недели и год начала, номер недели и год окончания.
+    Возвращает список словарей содержащих информацию о номере недели, её периоде, и номере недели для последующей
+    загрузки в компонент dcc.Dropdown.
+    """
+    last_week_of_start_year = date(start_year, 12, 31).isocalendar()[1]
+
+    start_period = [{"label": f'Неделя {i} ({GetPeriod(start_year, i)})',
+                     "value": i} for i in range(start_week, last_week_of_start_year + 1)]
+    end_period = [{"label": f'Неделя {i} ({GetPeriod(end_year, i)})', "value": i} for i in range(1, end_week + 1)]
+
+    for item in end_period:
+        start_period.append(item)
+    start_period.reverse()
+
+    return start_period
+
+
+def GetPeriodMonth(year, month):
+    """
+    Функция принимает на вход номер месяца и год. Взоращает строку 'Месяц год'
+    """
+    months = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь',
+              'Ноябрь',
+              'Декабрь']
+    period = ' '.join([str(months[month]), str(year)])
+
+    return period
+
+
+def GetMonths(start_month, start_year, end_month, end_year):
+    """
+    Функция принимает на вход период в виде 4-х параметров (номер месяца и год начала, номер месяца и год окончания.
+    Возвращает список словарей содержащих информацию о месяце, годе и номере месяца для последующей загрузки в
+    компонент dcc.Dropdown.
+    """
+    start_period = [{"label": f'{GetPeriodMonth(start_year, i)}', "value": i} for i in range(start_month, 13)]
+    end_period = [{"label": f'{GetPeriodMonth(end_year, i)}', "value": i} for i in range(1, end_month + 1)]
+
+    for item in end_period:
+        start_period.append(item)
+    start_period.reverse()
+
+    return start_period

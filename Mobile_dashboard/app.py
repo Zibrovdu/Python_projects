@@ -77,10 +77,18 @@ fig_site_top3.update_layout(title_text='Глубина просмотра раз
 # ------------------------------------- start load data block ------------------------------------------------------
 
 etsp_df = ld.LoadEtspData()
-top_user_etsp = pd.DataFrame(etsp_df.groupby('user')['count_task'].sum().sort_values(ascending=False).head()
+etsp_top_user_df = etsp_df[(etsp_df.unit != '19. Отдел сопровождения пользователей') &
+                           (etsp_df.unit != 'ЦОКР') & (etsp_df.user != 'Кондрашова Ирина Сергеевна')]
+top_user_etsp = pd.DataFrame(etsp_top_user_df.groupby('user')['count_task'].sum().sort_values(ascending=False).head()
                              .reset_index()).rename(columns={'user': 'Пользователь', 'count_task': 'Обращения'})
+start_week, start_month, start_year = etsp_df.reg_date.min().week, etsp_df.reg_date.min().month, \
+                                      etsp_df.reg_date.min().year
+end_week, end_month, end_year = etsp_df.reg_date.max().week, etsp_df.reg_date.max().month, etsp_df.reg_date.max().year
+
 sue_df = ld.LoadSueData()
-top_user_sue = pd.DataFrame(sue_df.groupby('user')['count_task'].sum()
+sue_top_user_df = sue_df[(sue_df.unit != '19. Отдел сопровождения пользователей') &
+                         (sue_df.unit != 'ЦОКР') & (sue_df.user != 'Кондрашова Ирина Сергеевна')]
+top_user_sue = pd.DataFrame(sue_top_user_df.groupby('user')['count_task'].sum()
                             .sort_values(ascending=False).head()
                             .reset_index()).rename(
     columns={'user': 'Пользователь', 'count_task': 'Обращения'})
@@ -92,8 +100,8 @@ sue_avaria_df.columns = ['Дата обращения', 'Тип', 'Номер', 
                          'Пользователь', 'timedelta', 'Отдел', 'month_open', 'month_solved', 'week_open', 'week_solved',
                          'count_task', 'Дата', 'finish_date']
 
-date1 = ld.GetPeriodForSite(ld.current_year, ld.current_week)[0]
-date2 = ld.GetPeriodForSite(ld.current_year, ld.current_week)[1]
+date1 = ld.GetPeriod(ld.current_year, ld.current_week, 's')[0]
+date2 = ld.GetPeriod(ld.current_year, ld.current_week, 's')[1]
 metrika_df = si.get_site_info(date1, date2)
 # ------------------------------------- end load data block ------------------------------------------------------
 
@@ -133,12 +141,13 @@ choice_type = [
 ]
 
 # months = list(calendar.month_name)
-months = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь',
-          'Декабрь']
-d_month = [{"label": months[i], "value": i} for i in range(1, 13)]
+# months = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь',
+#           'Декабрь']
+# d_month = [{"label": months[i], "value": i} for i in range(1, 13)]
+d_month = ld.GetMonths(start_month, start_year, end_month, end_year)
 
-d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "value": i} for i in range(1, 53)]
-
+# d_week = [{"label": f'Неделя {i} ({ld.GetPeriod(ld.current_year, i)})', "value": i} for i in range(1, 53)]
+d_week = ld.GetWeeks(start_week, start_year, end_week, end_year)
 
 app.layout = html.Div([
     html.Div([
@@ -163,26 +172,31 @@ app.layout = html.Div([
                                              clearable=False,
                                              value=ld.current_month,
                                              disabled=False
-                                             )], className='wrapper-dropdown-3', style=dict(width='170px'))],
+                                             )], className='wrapper-dropdown-3', style=dict(width='190px'))],
                      className='bblock'), ]),  # Month_choice dropdown
         html.Div([html.Div([dcc.Dropdown(id='week_choice',
                                          options=d_week,
                                          searchable=False,
                                          clearable=False,
-                                         value=ld.current_week,
+                                         value=ld.current_week - 1,
                                          style=dict(width='100%', heigth='60px'),
                                          disabled=False
-                                         )], className='wrapper-dropdown-3', style=dict(width='400px'))],
+                                         )], className='wrapper-dropdown-3', style=dict(width='420px'))],
                  className='bblock'),  # Week_choice dropdown
         html.Div([html.Div([dcc.DatePickerRange(id='period_choice',
                                                 display_format='DD-MM-YYYY',
                                                 min_date_allowed=dt.date(2019, 9, 1),
                                                 max_date_allowed=dt.date(2020, 12, 31),
+                                                # initial_visible_month=date(current_year, current_month,
+                                                # current_day),
                                                 start_date=dt.date(2020, 12, 10),
                                                 end_date=dt.date(2020, 12, 18),
                                                 updatemode='bothdates',
+                                                # start_date=date(current_year, current_month, current_day),
+                                                # end_date=date(end_year, end_month, end_day),
                                                 style=dict(background='#b1d5fa'),
                                                 clearable=False
+                                                # with_portal=True,
                                                 )])], className='bblock',
                  style=dict(heigth='45px')),  # Period_choice range picker
     ], style=dict(background='#b1d5fa')),
@@ -350,7 +364,7 @@ app.layout = html.Div([
                                                                    overflow='hidden',
                                                                    textOverflow='ellipsis',
                                                                    maxWidth=0))],
-                             style=dict(width='62%', padding='0 5%')),
+                             style=dict(width='90%', padding='0 5%', fontSize='2em')),
                     html.Div([html.H3('Рейтинг посещаемости разделов сайта за год', style=dict(padding='20px'))]),
                     html.Div([dcc.Graph(id='site_top_fig', figure=fig_site_top)]),
                     html.Div([dcc.Graph(id='site_top_fig2', figure=fig_site_top2)]),
@@ -483,8 +497,8 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
         osp_filtered_df = osp_df[osp_df['week_open'] == int(choosen_week)]
         sue_avaria_filtered_df = sue_avaria_df[sue_avaria_df['week_open'] == int(choosen_week)]
 
-        start_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[0]
-        end_date_metrika = ld.GetPeriodForSite(ld.current_year, choosen_week)[1]
+        start_date_metrika = ld.GetPeriod(ld.current_year, choosen_week, 's')[0]
+        end_date_metrika = ld.GetPeriod(ld.current_year, choosen_week, 's')[1]
 
         filtered_metrika_df = si.get_site_info(start_date_metrika, end_date_metrika)
 
@@ -499,8 +513,6 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
     etsp_avg_time = ld.CountMeanTime(etsp_filtered_df)
     sue_avg_time = ld.CountMeanTime(sue_filtered_df)
     osp_avg_time = ld.CountMeanTime(osp_filtered_df)
-
-    print(filtered_metrika_df.columns)
 
     visits = str(int(filtered_metrika_df['visits'][0]))
     users = str(int(filtered_metrika_df['users'][0]))
@@ -572,11 +584,17 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
 
     fig.update_layout(paper_bgcolor='#ebecf1', showlegend=True)
 
-    top_user_etsp_filtered_df = pd.DataFrame(etsp_filtered_df.groupby('user')['count_task']
+    etsp_top_user_filtered_df = etsp_filtered_df[(etsp_filtered_df.unit != '19. Отдел сопровождения пользователей') &
+                                                 (etsp_filtered_df.unit != 'ЦОКР') &
+                                                 (etsp_filtered_df.user != 'Кондрашова Ирина Сергеевна')]
+    top_user_etsp_filtered_df = pd.DataFrame(etsp_top_user_filtered_df.groupby('user')['count_task']
                                              .sum().sort_values(ascending=False).head().reset_index()).rename(
         columns={'user': 'Пользователь', 'count_task': 'Обращения'})
 
-    top_user_sue_filtered_df = pd.DataFrame(sue_filtered_df.groupby('user')['count_task'].sum().sort_values(
+    sue_top_user_filtered_df = sue_filtered_df[(sue_filtered_df.unit != '19. Отдел сопровождения пользователей') &
+                                               (sue_filtered_df.unit != 'ЦОКР') &
+                                               (sue_filtered_df.user != 'Кондрашова Ирина Сергеевна')]
+    top_user_sue_filtered_df = pd.DataFrame(sue_top_user_filtered_df.groupby('user')['count_task'].sum().sort_values(
         ascending=False).head().reset_index()).rename(columns={'user': 'Пользователь', 'count_task': 'Обращения'})
 
     if len(sue_avaria_filtered_df) > 0:
@@ -601,4 +619,4 @@ def update_figure_user(start_date_user, end_date_user, choosen_month, choosen_we
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, host='192.168.1.4', port=8500)
+    app.run_server(debug=True, host='192.168.1.4', port=8600)
